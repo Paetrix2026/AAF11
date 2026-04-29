@@ -70,18 +70,18 @@ DEMO_PATIENTS = [
 
 
 async def seed():
-    print("🌱 Starting seed...\n")
+    print("Starting seed...\n")
     conn = await asyncpg.connect(DATABASE_URL)
     import json
 
     try:
         # Create doctor
-        doctor_email = "doctor@protengine.ai"
+        doctor_email = "doctor@proteinengine.ai"
         existing = await conn.fetchrow("SELECT id FROM users WHERE email=$1", doctor_email)
 
         if existing:
             doctor_id = str(existing["id"])
-            print(f"✓ Doctor already exists: {doctor_email} (id: {doctor_id})")
+            print(f"Doctor already exists: {doctor_email} (id: {doctor_id})")
         else:
             row = await conn.fetchrow(
                 """
@@ -96,7 +96,7 @@ async def seed():
                 True,
             )
             doctor_id = str(row["id"])
-            print(f"✓ Created doctor: {doctor_email} (id: {doctor_id})")
+            print(f"Created doctor: {doctor_email} (id: {doctor_id})")
 
         # Create patients
         for p in DEMO_PATIENTS:
@@ -105,7 +105,7 @@ async def seed():
                 p["name"], doctor_id,
             )
             if existing_patient:
-                print(f"✓ Patient already exists: {p['name']}")
+                print(f"Patient already exists: {p['name']}")
                 continue
 
             row = await conn.fetchrow(
@@ -123,11 +123,11 @@ async def seed():
                 json.dumps(p["medications"]),
                 p["status"],
             )
-            print(f"✓ Created patient: {p['name']} (id: {row['id']})")
+            print(f"Created patient: {p['name']} (id: {row['id']})")
 
-        print("\n✅ Seed complete!")
-        print("\n📋 Demo Credentials:")
-        print("   Doctor:  doctor@protengine.ai / demo1234")
+        print("\nSeed complete!")
+        print("\nDemo Credentials:")
+        print("   Doctor:  doctor@proteinengine.ai / demo1234")
 
     finally:
         await conn.close()

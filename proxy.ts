@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const token = request.cookies.get("token")?.value;
   const user = request.cookies.get("user")?.value;
   const pathname = request.nextUrl.pathname;
@@ -10,7 +10,9 @@ export function middleware(request: NextRequest) {
   const isDoctorPage = pathname.startsWith("/doctor");
   const isPatientPage = pathname.startsWith("/patient");
 
-  if (!token && !isAuthPage) {
+  const isLandingPage = pathname === "/";
+
+  if (!token && !isAuthPage && !isLandingPage) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

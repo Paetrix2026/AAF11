@@ -40,6 +40,7 @@ from routers import (
     patients,
     alerts,
     telegram,
+    docking,
 )
 
 
@@ -74,6 +75,7 @@ app.include_router(structure.router, prefix="/api")
 app.include_router(auth.router, prefix="/api/auth")
 app.include_router(patients.router, prefix="/api/patients")
 app.include_router(alerts.router, prefix="/api/alerts")
+app.include_router(docking.router, prefix="/api")
 app.include_router(telegram.router, prefix="/api/telegram")
 
 

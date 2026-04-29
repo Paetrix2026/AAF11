@@ -1,13 +1,29 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { gsap } from "gsap";
+import { useEffect, useState } from "react";
 import { getPatients, getAlerts, getPipelineRuns } from "@/lib/api";
 import { getUserFromCookie } from "@/lib/auth";
 import { RiskBadge } from "@/components/shared/RiskBadge";
 import { formatRelativeTime } from "@/lib/utils";
 import Link from "next/link";
+import { 
+  Activity, 
+  Users, 
+  AlertTriangle, 
+  Zap, 
+  Terminal,
+  TrendingUp,
+  ShieldCheck,
+  Globe,
+  ChevronRight,
+  Clock,
+  Calendar
+} from "lucide-react";
 import type { Alert, Patient, PipelineRun, User } from "@/types";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 export default function DoctorDashboard() {
   const [user, setUser] = useState<User | null>(null);
@@ -30,478 +46,201 @@ export default function DoctorDashboard() {
     });
   }, []);
 
-  useEffect(() => {
-    if (!loading) {
-      gsap.fromTo(
-        ".bento-card",
-        { opacity: 0, y: 20 },
-        { opacity: 1, y: 0, stagger: 0.1, duration: 0.5, ease: "power2.out" }
-      );
-    }
-  }, [loading]);
-
   const criticalPatients = patients.filter((p) => p.status === "critical");
-  const activePatients = patients.filter((p) => p.status === "active");
-  const totalPatients = patients.length;
   const runningPipelines = pipelineRuns.filter((r) => r.status === "running").length;
   const unreadAlerts = alerts.filter((a) => !a.read).length;
-  const recentAlerts = alerts.slice(0, 5);
-  const recentRuns = pipelineRuns.slice(0, 5);
-
-  const cardStyle = {
-    background: "var(--bg-surface)",
-    border: "1px solid var(--bg-border)",
-    padding: "1.25rem",
-  };
-
-  const labelStyle = {
-    fontFamily: "var(--font-display)",
-    fontSize: "0.5625rem",
-    color: "var(--text-muted)",
-    letterSpacing: "0.15em",
-    textTransform: "uppercase" as const,
-    marginBottom: "0.375rem",
-  };
-
-  const valueStyle = {
-    fontFamily: "var(--font-display)",
-    fontSize: "2rem",
-    color: "var(--text-primary)",
-    lineHeight: 1,
-  };
 
   if (loading) {
     return (
-      <div
-        style={{
-          padding: "2rem",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "100vh",
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-display)",
-            color: "var(--accent-primary)",
-            fontSize: "0.875rem",
-            letterSpacing: "0.1em",
-          }}
-        >
-          LOADING DASHBOARD...
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-4 text-muted-foreground">
+          <Activity className="w-8 h-8 animate-spin text-primary" />
+          <p>Loading Dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: "2rem", maxWidth: "1400px" }}>
+    <div className="p-6 max-w-7xl mx-auto space-y-8">
       {/* Header */}
-      <div style={{ marginBottom: "1.75rem" }}>
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "1.25rem",
-            color: "var(--text-primary)",
-            letterSpacing: "0.05em",
-          }}
-        >
-          {user ? `Welcome, ${user.name}` : "Dashboard"}
-        </h1>
-        <p
-          style={{
-            fontFamily: "var(--font-body)",
-            color: "var(--text-secondary)",
-            fontSize: "0.875rem",
-            marginTop: "0.25rem",
-          }}
-        >
-          {new Date().toLocaleDateString("en-US", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
-        </p>
-      </div>
-
-      {/* Bento Grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "2fr 1fr 1fr",
-          gridTemplateRows: "auto auto",
-          gap: "1rem",
-        }}
-      >
-        {/* Today's Summary — large card */}
-        <div
-          className="bento-card"
-          style={{ ...cardStyle, gridRow: "1", gridColumn: "1" }}
-        >
-          <div style={labelStyle}>Today's Summary</div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr 1fr",
-              gap: "1.25rem",
-              marginTop: "0.75rem",
-            }}
-          >
-            <div>
-              <div style={labelStyle}>Total Patients</div>
-              <div style={valueStyle}>{totalPatients}</div>
-            </div>
-            <div>
-              <div style={labelStyle}>Critical</div>
-              <div
-                style={{ ...valueStyle, color: "var(--risk-critical)" }}
-              >
-                {criticalPatients.length}
-              </div>
-            </div>
-            <div>
-              <div style={labelStyle}>Active Pipelines</div>
-              <div
-                style={{ ...valueStyle, color: "var(--accent-primary)" }}
-              >
-                {runningPipelines}
-              </div>
-            </div>
-            <div>
-              <div style={labelStyle}>Unread Alerts</div>
-              <div
-                style={{
-                  ...valueStyle,
-                  color:
-                    unreadAlerts > 0
-                      ? "var(--risk-high)"
-                      : "var(--text-primary)",
-                }}
-              >
-                {unreadAlerts}
-              </div>
-            </div>
-          </div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Clinical Intelligence</h1>
+          <p className="text-muted-foreground mt-1 flex items-center gap-2">
+            Welcome back, Dr. {user?.name?.split(" ")[0] || "User"}
+          </p>
         </div>
-
-        {/* Active Variants placeholder */}
-        <div className="bento-card" style={{ ...cardStyle }}>
-          <div style={labelStyle}>Active Variants</div>
-          <div
-            style={{
-              marginTop: "0.75rem",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              height: "100px",
-            }}
-          >
-            <p
-              style={{
-                fontFamily: "var(--font-body)",
-                color: "var(--text-muted)",
-                fontSize: "0.8125rem",
-                textAlign: "center",
-              }}
-            >
-              No variant data yet.
-              <br />
-              Run a pipeline to see results.
-            </p>
-          </div>
-        </div>
-
-        {/* Resistance Alerts */}
-        <div className="bento-card" style={{ ...cardStyle }}>
-          <div style={labelStyle}>Resistance Alerts</div>
-          <div style={{ marginTop: "0.75rem" }}>
-            {recentAlerts.length === 0 ? (
-              <p
-                style={{
-                  fontFamily: "var(--font-body)",
-                  color: "var(--text-muted)",
-                  fontSize: "0.8125rem",
-                }}
-              >
-                No alerts.
-              </p>
-            ) : (
-              recentAlerts.map((alert) => (
-                <div
-                  key={alert.id}
-                  style={{
-                    marginBottom: "0.625rem",
-                    paddingBottom: "0.625rem",
-                    borderBottom: "1px solid var(--bg-border)",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: "0.5rem",
-                    }}
-                  >
-                    <RiskBadge
-                      level={
-                        alert.severity as
-                          | "critical"
-                          | "high"
-                          | "moderate"
-                          | "low"
-                          | "safe"
-                      }
-                      size="sm"
-                    />
-                    <div>
-                      <p
-                        style={{
-                          fontFamily: "var(--font-body)",
-                          fontSize: "0.75rem",
-                          color: "var(--text-primary)",
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        {alert.message}
-                      </p>
-                      <p
-                        style={{
-                          fontFamily: "var(--font-display)",
-                          fontSize: "0.5625rem",
-                          color: "var(--text-muted)",
-                          marginTop: "0.25rem",
-                        }}
-                      >
-                        {formatRelativeTime(alert.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Critical Patients */}
-        <div
-          className="bento-card"
-          style={{ ...cardStyle, gridColumn: "1" }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: "0.75rem",
-            }}
-          >
-            <div style={labelStyle}>Critical Patients</div>
-            <Link
-              href="/doctor/patients"
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "0.5625rem",
-                color: "var(--accent-primary)",
-                textDecoration: "none",
-                letterSpacing: "0.08em",
-              }}
-            >
-              VIEW ALL →
-            </Link>
-          </div>
-          {criticalPatients.length === 0 ? (
-            <p
-              style={{
-                fontFamily: "var(--font-body)",
-                color: "var(--text-muted)",
-                fontSize: "0.8125rem",
-              }}
-            >
-              No critical patients.
-            </p>
-          ) : (
-            criticalPatients.map((p) => (
-              <div
-                key={p.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "0.625rem 0",
-                  borderBottom: "1px solid var(--bg-border)",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-body)",
-                      fontSize: "0.875rem",
-                      color: "var(--text-primary)",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {p.name}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-body)",
-                      fontSize: "0.75rem",
-                      color: "var(--text-muted)",
-                    }}
-                  >
-                    {p.age}y • {p.gender} • {p.location}
-                  </div>
-                </div>
-                <Link
-                  href={`/doctor/patients/${p.id}`}
-                  style={{
-                    padding: "0.3125rem 0.75rem",
-                    background: "transparent",
-                    border: "1px solid var(--risk-critical)",
-                    color: "var(--risk-critical)",
-                    fontFamily: "var(--font-display)",
-                    fontSize: "0.5625rem",
-                    letterSpacing: "0.08em",
-                    textDecoration: "none",
-                  }}
-                >
-                  VIEW
-                </Link>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Pipeline Activity */}
-        <div
-          className="bento-card"
-          style={{ ...cardStyle, gridColumn: "2 / 4" }}
-        >
-          <div style={labelStyle}>Recent Pipeline Activity</div>
-          <div style={{ marginTop: "0.75rem" }}>
-            {recentRuns.length === 0 ? (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "2rem 0",
-                }}
-              >
-                <p
-                  style={{
-                    fontFamily: "var(--font-body)",
-                    color: "var(--text-muted)",
-                    fontSize: "0.875rem",
-                    textAlign: "center",
-                  }}
-                >
-                  No pipeline runs yet.
-                  <br />
-                  <Link
-                    href="/doctor/pipeline"
-                    style={{
-                      color: "var(--accent-primary)",
-                      textDecoration: "none",
-                    }}
-                  >
-                    Run your first analysis →
-                  </Link>
-                </p>
-              </div>
-            ) : (
-              recentRuns.map((run) => (
-                <div
-                  key={run.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "1rem",
-                    padding: "0.5rem 0",
-                    borderBottom: "1px solid var(--bg-border)",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "8px",
-                      height: "8px",
-                      borderRadius: "50%",
-                      flexShrink: 0,
-                      background:
-                        run.status === "complete"
-                          ? "var(--risk-safe)"
-                          : run.status === "running"
-                            ? "var(--accent-primary)"
-                            : "var(--risk-critical)",
-                    }}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <span
-                      style={{
-                        fontFamily: "var(--font-body)",
-                        fontSize: "0.875rem",
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      {run.pathogen}
-                    </span>
-                    {run.variant && (
-                      <span
-                        style={{
-                          fontFamily: "var(--font-display)",
-                          fontSize: "0.6875rem",
-                          color: "var(--text-muted)",
-                          marginLeft: "0.5rem",
-                        }}
-                      >
-                        {run.variant}
-                      </span>
-                    )}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: "0.5625rem",
-                      color: "var(--text-muted)",
-                      letterSpacing: "0.08em",
-                    }}
-                  >
-                    {run.status.toUpperCase()}
-                  </div>
-                  {run.createdAt && (
-                    <div
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontSize: "0.5625rem",
-                        color: "var(--text-muted)",
-                      }}
-                    >
-                      {formatRelativeTime(run.createdAt)}
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <span className="flex items-center gap-2">
+            <Calendar className="w-4 h-4" /> {new Date().toLocaleDateString("en-US", { day: 'numeric', month: 'long', year: 'numeric' })}
+          </span>
         </div>
       </div>
 
-      {/* Disclaimer */}
-      <p
-        style={{
-          marginTop: "2rem",
-          fontFamily: "var(--font-body)",
-          fontSize: "0.75rem",
-          color: "var(--text-muted)",
-          fontStyle: "italic",
-          textAlign: "center",
-        }}
-      >
-        Healynx assists clinical decision-making and does not replace
-        professional medical judgment.
-      </p>
+      {/* Top Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{patients.length}</div>
+            <p className="text-xs text-muted-foreground">+2 from last month</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Critical Cases</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-destructive">{criticalPatients.length}</div>
+            <p className="text-xs text-muted-foreground">Require immediate attention</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Pipelines</CardTitle>
+            <Zap className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{runningPipelines}</div>
+            <p className="text-xs text-muted-foreground">Currently processing</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Unread Alerts</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{unreadAlerts}</div>
+            <p className="text-xs text-muted-foreground">New system notifications</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          
+          {/* Critical Patients List */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
+              <div>
+                <CardTitle>High-Risk Patients</CardTitle>
+                <CardDescription>Patients requiring immediate review</CardDescription>
+              </div>
+              <Link href="/doctor/patients" className="inline-flex h-8 items-center justify-center rounded-lg border border-border bg-background px-2.5 text-xs font-medium hover:bg-muted hover:text-foreground">
+                View All
+              </Link>
+            </CardHeader>
+            <CardContent className="p-0">
+              {criticalPatients.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  No critical patients at this time.
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {criticalPatients.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-destructive/10 text-destructive flex items-center justify-center font-bold">
+                          {p.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-medium">{p.name}</p>
+                          <p className="text-sm text-muted-foreground">{p.age} yrs • {p.gender}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <RiskBadge level="critical" />
+                        <Link href={`/doctor/patients/${p.id}`} className="inline-flex size-8 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground">
+                          <ChevronRight className="w-4 h-4" />
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Pipeline Status */}
+          <Card>
+            <CardHeader className="border-b pb-4">
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-4 h-4" /> Pipeline Activity
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b bg-muted/50 text-muted-foreground text-left">
+                      <th className="p-4 font-medium">Pathogen</th>
+                      <th className="p-4 font-medium">Variant ID</th>
+                      <th className="p-4 font-medium">Status</th>
+                      <th className="p-4 font-medium text-right">Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {pipelineRuns.slice(0, 5).map((run) => (
+                      <tr key={run.id} className="hover:bg-muted/50 transition-colors">
+                        <td className="p-4 font-medium">{run.pathogen}</td>
+                        <td className="p-4 text-muted-foreground">{run.variant || "—"}</td>
+                        <td className="p-4">
+                          <Badge 
+                            variant={run.status === 'complete' ? 'default' : run.status === 'running' ? 'secondary' : 'destructive'}
+                          >
+                            {run.status}
+                          </Badge>
+                        </td>
+                        <td className="p-4 text-right text-muted-foreground">
+                          {formatRelativeTime(run.createdAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Sidebar */}
+        <div className="space-y-6">
+          <Card className="h-full">
+            <CardHeader className="border-b pb-4">
+              <CardTitle>System Alerts</CardTitle>
+              <CardDescription>Recent intelligence and system notifications</CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y">
+                {alerts.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    No active alerts.
+                  </div>
+                ) : (
+                  alerts.slice(0, 8).map((alert) => (
+                    <div key={alert.id} className="p-4 space-y-2 hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <RiskBadge level={alert.severity as any} size="sm" />
+                        <span className="text-xs text-muted-foreground">
+                          {formatRelativeTime(alert.createdAt)}
+                        </span>
+                      </div>
+                      <p className="text-sm">{alert.message}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import type { User } from "@/types";
 
 export function setAuthCookie(token: string): void {
   if (typeof document === "undefined") return;
-  document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 8}; SameSite=Lax`;
+  document.cookie = `token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
 }
 
 export function clearAuthCookie(): void {
@@ -13,7 +13,7 @@ export function clearAuthCookie(): void {
 
 export function setUserCookie(user: User): void {
   if (typeof document === "undefined") return;
-  document.cookie = `user=${encodeURIComponent(JSON.stringify(user))}; path=/; max-age=${60 * 60 * 8}; SameSite=Lax`;
+  document.cookie = `user=${encodeURIComponent(JSON.stringify(user))}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
 }
 
 export function getUserFromCookie(): User | null {

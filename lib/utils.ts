@@ -6,6 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDate(date: string | Date): string {
+  if (!date) return "";
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
@@ -14,6 +15,7 @@ export function formatDate(date: string | Date): string {
 }
 
 export function formatRelativeTime(date: string | Date): string {
+  if (!date) return "just now";
   const now = new Date();
   const then = new Date(date);
   const diffMs = now.getTime() - then.getTime();
@@ -28,6 +30,7 @@ export function formatRelativeTime(date: string | Date): string {
 }
 
 export function getRiskColor(risk: string): string {
+  if (!risk) return "var(--text-muted)";
   switch (risk.toLowerCase()) {
     case "critical":
       return "var(--risk-critical)";
@@ -45,6 +48,7 @@ export function getRiskColor(risk: string): string {
 }
 
 export function getStatusColor(status: string): string {
+  if (!status) return "var(--text-muted)";
   switch (status.toLowerCase()) {
     case "critical":
       return "var(--risk-critical)";

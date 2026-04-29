@@ -42,6 +42,17 @@ def _serialize_patient(row: dict) -> dict:
     p["userId"] = str(p.pop("user_id")) if p.get("user_id") else None
     if p.get("created_at"):
         p["createdAt"] = p.pop("created_at").isoformat()
+    
+    # Parse JSON strings since asyncpg returns JSONB as strings
+    for field in ["conditions", "medications"]:
+        if isinstance(p.get(field), str):
+            try:
+                p[field] = json.loads(p[field])
+            except json.JSONDecodeError:
+                p[field] = []
+        elif p.get(field) is None:
+            p[field] = []
+            
     return p
 
 

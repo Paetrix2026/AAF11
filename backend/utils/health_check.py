@@ -13,8 +13,8 @@ def print_health_report() -> None:
     for binary, description in binaries.items():
         path = shutil.which(binary)
         if path:
-            print(f"  ✓ {description}: {path}")
+            print(f"  [FOUND] {description}: {path}")
         else:
-            print(f"  ✗ {description}: NOT FOUND (optional for demo)")
+            print(f"  [MISSING] {description}: NOT FOUND (optional for demo)")
 
     print("===================================\n")

@@ -6,6 +6,9 @@ import { RiskBadge } from "@/components/shared/RiskBadge";
 import { PipelineRunner } from "@/components/pipeline/PipelineRunner";
 import { formatDate } from "@/lib/utils";
 import type { Patient } from "@/types";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 export default function PatientDetailPage({
   params,
@@ -26,76 +29,32 @@ export default function PatientDetailPage({
 
   if (loading) {
     return (
-      <div
-        style={{
-          padding: "2rem",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "50vh",
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "var(--font-display)",
-            color: "var(--accent-primary)",
-            fontSize: "0.875rem",
-            letterSpacing: "0.1em",
-          }}
-        >
-          LOADING PATIENT...
-        </div>
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <p className="text-muted-foreground">Loading patient details...</p>
       </div>
     );
   }
 
   if (error || !patient) {
     return (
-      <div style={{ padding: "2rem" }}>
-        <div
-          style={{
-            padding: "2rem",
-            background: "var(--bg-surface)",
-            border: "1px solid var(--bg-border)",
-            textAlign: "center",
-          }}
-        >
-          <p
-            style={{
-              fontFamily: "var(--font-display)",
-              color: "var(--risk-critical)",
-              fontSize: "0.875rem",
-              letterSpacing: "0.08em",
-            }}
-          >
-            {error || "PATIENT NOT FOUND"}
-          </p>
-        </div>
+      <div className="p-6">
+        <Card className="border-destructive/50 bg-destructive/10">
+          <CardContent className="flex items-center justify-center p-6">
+            <p className="text-destructive font-medium">{error || "Patient not found"}</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: "2rem", maxWidth: "1400px" }}>
+    <div className="p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "1rem",
-          marginBottom: "1.75rem",
-        }}
-      >
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "1.25rem",
-            color: "var(--text-primary)",
-            letterSpacing: "0.05em",
-          }}
-        >
-          {patient.name}
-        </h1>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{patient.name}</h1>
+          <p className="text-muted-foreground mt-1">Patient ID: {patient.id}</p>
+        </div>
         <RiskBadge
           level={
             patient.status === "critical"
@@ -107,240 +66,92 @@ export default function PatientDetailPage({
         />
       </div>
 
-      {/* Two-column layout */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "2fr 3fr",
-          gap: "1.5rem",
-          alignItems: "start",
-        }}
-      >
+      <Separator />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left — Patient Profile */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          {/* Demographics */}
-          <div
-            style={{
-              padding: "1.25rem",
-              background: "var(--bg-surface)",
-              border: "1px solid var(--bg-border)",
-            }}
-          >
-            <div
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "0.5625rem",
-                color: "var(--text-muted)",
-                letterSpacing: "0.15em",
-                textTransform: "uppercase",
-                marginBottom: "1rem",
-              }}
-            >
-              Patient Profile
-            </div>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "1rem",
-              }}
-            >
-              {[
-                { label: "Age", value: patient.age ? `${patient.age} years` : "—" },
-                { label: "Gender", value: patient.gender ?? "—" },
-                { label: "Location", value: patient.location ?? "—" },
-                {
-                  label: "Patient Since",
-                  value: patient.createdAt ? formatDate(patient.createdAt) : "—",
-                },
-              ].map(({ label, value }) => (
-                <div key={label}>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: "0.5rem",
-                      color: "var(--text-muted)",
-                      letterSpacing: "0.12em",
-                      textTransform: "uppercase",
-                      marginBottom: "0.25rem",
-                    }}
-                  >
-                    {label}
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-body)",
-                      fontSize: "0.875rem",
-                      color: "var(--text-primary)",
-                    }}
-                  >
-                    {value}
-                  </div>
+        <div className="lg:col-span-1 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Demographics</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Age</p>
+                  <p className="font-medium">{patient.age ? `${patient.age} years` : "—"}</p>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Conditions */}
-          <div
-            style={{
-              padding: "1.25rem",
-              background: "var(--bg-surface)",
-              border: "1px solid var(--bg-border)",
-            }}
-          >
-            <div
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "0.5625rem",
-                color: "var(--text-muted)",
-                letterSpacing: "0.15em",
-                textTransform: "uppercase",
-                marginBottom: "0.75rem",
-              }}
-            >
-              Comorbidities
-            </div>
-            {patient.conditions.length === 0 ? (
-              <p
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontSize: "0.8125rem",
-                  color: "var(--text-muted)",
-                }}
-              >
-                None recorded
-              </p>
-            ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem" }}>
-                {patient.conditions.map((c) => (
-                  <span
-                    key={c}
-                    style={{
-                      padding: "0.25rem 0.625rem",
-                      background: "var(--bg-elevated)",
-                      border: "1px solid var(--bg-border)",
-                      fontFamily: "var(--font-body)",
-                      fontSize: "0.8125rem",
-                      color: "var(--text-secondary)",
-                      borderRadius: "2px",
-                    }}
-                  >
-                    {c}
-                  </span>
-                ))}
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Gender</p>
+                  <p className="font-medium">{patient.gender ?? "—"}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Location</p>
+                  <p className="font-medium">{patient.location ?? "—"}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Patient Since</p>
+                  <p className="font-medium">{patient.createdAt ? formatDate(patient.createdAt) : "—"}</p>
+                </div>
               </div>
-            )}
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* Medications */}
-          <div
-            style={{
-              padding: "1.25rem",
-              background: "var(--bg-surface)",
-              border: "1px solid var(--bg-border)",
-            }}
-          >
-            <div
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "0.5625rem",
-                color: "var(--text-muted)",
-                letterSpacing: "0.15em",
-                textTransform: "uppercase",
-                marginBottom: "0.75rem",
-              }}
-            >
-              Current Medications
-            </div>
-            {patient.medications.length === 0 ? (
-              <p
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontSize: "0.8125rem",
-                  color: "var(--text-muted)",
-                }}
-              >
-                None prescribed
-              </p>
-            ) : (
-              <div
-                style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}
-              >
-                {patient.medications.map((med, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      padding: "0.625rem 0.75rem",
-                      background: "var(--bg-elevated)",
-                      border: "1px solid var(--bg-border)",
-                      borderLeft: "2px solid var(--accent-primary)",
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontFamily: "var(--font-display)",
-                          fontSize: "0.8125rem",
-                          color: "var(--text-primary)",
-                        }}
-                      >
-                        {med.name}
-                      </span>
-                      <span
-                        style={{
-                          fontFamily: "var(--font-display)",
-                          fontSize: "0.75rem",
-                          color: "var(--accent-primary)",
-                        }}
-                      >
-                        {med.dose}
-                      </span>
+          <Card>
+            <CardHeader>
+              <CardTitle>Comorbidities</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!(patient.conditions && patient.conditions.length > 0) ? (
+                <p className="text-sm text-muted-foreground">None recorded</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {(patient.conditions || []).map((c) => (
+                    <Badge key={c} variant="secondary">
+                      {c}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Current Medications</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!(patient.medications && patient.medications.length > 0) ? (
+                <p className="text-sm text-muted-foreground">None prescribed</p>
+              ) : (
+                <div className="space-y-4">
+                  {(patient.medications || []).map((med, idx) => (
+                    <div key={idx} className="flex flex-col space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium">{med.name}</p>
+                        <p className="text-sm text-muted-foreground">{med.dose}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Since {med.since}</p>
+                      {idx < patient.medications.length - 1 && <Separator className="mt-3" />}
                     </div>
-                    <div
-                      style={{
-                        fontFamily: "var(--font-body)",
-                        fontSize: "0.75rem",
-                        color: "var(--text-muted)",
-                        marginTop: "0.25rem",
-                      }}
-                    >
-                      Since {med.since}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right — Pipeline Runner */}
-        <div
-          style={{
-            padding: "1.25rem",
-            background: "var(--bg-surface)",
-            border: "1px solid var(--bg-border)",
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "0.5625rem",
-              color: "var(--text-muted)",
-              letterSpacing: "0.15em",
-              textTransform: "uppercase",
-              marginBottom: "1.25rem",
-            }}
-          >
-            AI Analysis Pipeline
-          </div>
-          <PipelineRunner patientId={id} />
+        <div className="lg:col-span-2">
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle>AI Analysis Pipeline</CardTitle>
+              <CardDescription>Run diagnostics and generate treatment recommendations.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PipelineRunner patientId={id} />
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

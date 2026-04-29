@@ -96,3 +96,5 @@ export const getPipelineRuns = (patientId?: string) =>
   apiCall<PipelineRun[]>(
     patientId ? `/api/pipeline/runs?patient_id=${patientId}` : "/api/pipeline/runs"
   );
+export const getScreeningCompounds = () =>
+  apiCall<any[]>("/api/screening-compounds");

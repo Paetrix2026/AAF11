@@ -59,6 +59,7 @@ export interface PipelineResult {
   resistanceScores?: Record<string, number>;
   similarCases?: SimilarCase[];
   admetScores?: AdmetScores;
+  dockingResults?: any[];
 }
 
 export interface SimilarCase {

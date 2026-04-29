@@ -2,9 +2,9 @@ import { PatientSidebar } from "@/components/sidebar/PatientSidebar";
 
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-base)" }}>
+    <div className="flex min-h-screen bg-background text-foreground">
       <PatientSidebar />
-      <main style={{ flex: 1, marginLeft: "240px", minHeight: "100vh", overflowY: "auto" }}>
+      <main className="flex-1 lg:ml-[280px] min-h-screen overflow-y-auto relative">
         {children}
       </main>
     </div>

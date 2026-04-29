@@ -364,6 +364,87 @@ export function PipelineOutput({ result }: PipelineOutputProps) {
         </div>
       )}
 
+      {/* Docking results */}
+      {result.dockingResults && result.dockingResults.length > 0 && (
+        <div
+          style={{
+            padding: "1.25rem",
+            background: "var(--bg-surface)",
+            border: "1px solid var(--bg-border)",
+          }}
+        >
+          <div style={sectionLabel}>Molecular Docking (AutoDock Vina)</div>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
+          >
+            {result.dockingResults.map((r, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "0.5rem",
+                  background: "var(--bg-elevated)",
+                  border: "1px solid var(--bg-border)",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: "0.75rem",
+                      color: "var(--text-primary)",
+                    }}
+                  >
+                    {r.name}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-body)",
+                      fontSize: "0.5rem",
+                      color: "var(--text-muted)",
+                      maxWidth: "200px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {r.smiles}
+                  </span>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <span
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: "0.875rem",
+                      color:
+                        (r.affinity ?? 0) < -7
+                          ? "var(--risk-safe)"
+                          : (r.affinity ?? 0) < -5
+                            ? "var(--risk-moderate)"
+                            : "var(--text-muted)",
+                    }}
+                  >
+                    {r.affinity ? `${r.affinity.toFixed(1)}` : "N/A"}
+                  </span>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: "0.5rem",
+                      color: "var(--text-muted)",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    kcal/mol
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <p
         style={{
           fontFamily: "var(--font-body)",

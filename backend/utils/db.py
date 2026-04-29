@@ -20,4 +20,4 @@ async def init_db() -> None:
     async with pool.acquire() as conn:
         # Test the connection
         await conn.fetchval("SELECT 1")
-    print("✓ Connected to Neon PostgreSQL")
+    print("Connected to Neon PostgreSQL")

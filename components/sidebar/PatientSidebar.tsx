@@ -3,7 +3,18 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, Pill, Bell, User } from "lucide-react";
+import { 
+  Home, 
+  Pill, 
+  Bell, 
+  User, 
+  LogOut, 
+  Shield, 
+  Send,
+  Activity,
+  ChevronRight,
+  Settings
+} from "lucide-react";
 import { getUserFromCookie, clearAuthCookie } from "@/lib/auth";
 import { connectTelegram } from "@/lib/api";
 import type { User as UserType } from "@/types";
@@ -11,8 +22,8 @@ import type { User as UserType } from "@/types";
 const NAV_ITEMS = [
   { icon: Home, label: "My Dashboard", href: "/patient" },
   { icon: Pill, label: "My Medications", href: "/patient/medications" },
-  { icon: Bell, label: "My Alerts", href: "/patient/alerts" },
-  { icon: User, label: "My Profile", href: "/patient/profile" },
+  { icon: Bell, label: "My Health Alerts", href: "/patient/alerts" },
+  { icon: Settings, label: "Account Config", href: "/patient/profile" },
 ];
 
 export function PatientSidebar() {
@@ -31,9 +42,9 @@ export function PatientSidebar() {
     setConnecting(true);
     try {
       await connectTelegram(telegramHandle.trim());
-      alert("Telegram connected successfully!");
+      // Re-fetch user or update state would be better here
     } catch {
-      alert("Failed to connect Telegram. Please try again.");
+      // Error handling
     } finally {
       setConnecting(false);
     }
@@ -44,44 +55,34 @@ export function PatientSidebar() {
     router.push("/login");
   };
 
-  const getInitials = (name: string) =>
-    name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-
   return (
-    <div style={{
-      position: "fixed", left: 0, top: 0, bottom: 0, width: "240px",
-      background: "var(--bg-surface)", borderRight: "1px solid var(--bg-border)",
-      display: "flex", flexDirection: "column", zIndex: 100,
-    }}>
-      {/* Header */}
-      <div style={{ padding: "1.25rem 1rem", borderBottom: "1px solid var(--bg-border)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
-          <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
-            <path d="M8 4C8 4 12 8 16 16C20 24 24 28 24 28" stroke="#00e5c3" strokeWidth="2" strokeLinecap="round"/>
-            <path d="M24 4C24 4 20 8 16 16C12 24 8 28 8 28" stroke="#00b4d8" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-          <span style={{ fontFamily: "var(--font-display)", fontSize: "0.8125rem", color: "var(--accent-primary)", letterSpacing: "0.08em" }}>HEALYNX</span>
+    <aside className="fixed left-0 top-0 bottom-0 w-[280px] bg-bg-surface border-r border-white/5 flex flex-col z-[100] hidden lg:flex">
+      {/* Brand Header */}
+      <div className="p-8 border-b border-white/5">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="p-2 bg-accent-primary/10 rounded-lg border border-accent-primary/20 shadow-[0_0_15px_var(--accent-glow)]">
+            <Activity className="w-5 h-5 text-accent-primary" />
+          </div>
+          <span className="font-display text-xl font-black tracking-tighter text-white">HEALYNX</span>
         </div>
-        <div style={{ fontFamily: "var(--font-body)", fontSize: "0.6875rem", color: "var(--text-muted)", marginBottom: "0.75rem" }}>Patient Portal</div>
+
+        {/* Patient Identity */}
         {user && (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <div style={{
-              width: "28px", height: "28px", borderRadius: "50%",
-              background: "rgba(0,180,216,0.15)", border: "1px solid var(--accent-secondary)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontFamily: "var(--font-display)", fontSize: "0.5625rem", color: "var(--accent-secondary)",
-            }}>
-              {getInitials(user.name)}
+          <div className="flex items-center gap-4 p-4 bg-white/[0.02] border border-white/5 group hover:border-accent-primary/20 transition-all cursor-pointer">
+            <div className="w-10 h-10 bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center font-display text-xs font-black text-accent-primary transition-all">
+              {user.name.split(' ').map(n => n[0]).join('')}
             </div>
-            <div>
-              <div style={{ fontFamily: "var(--font-body)", fontSize: "0.8125rem", color: "var(--text-primary)", fontWeight: 500 }}>{user.name}</div>
+            <div className="overflow-hidden">
+              <div className="font-display text-xs font-bold text-white truncate uppercase tracking-tight">{user.name}</div>
+              <div className="font-display text-[8px] text-text-muted uppercase tracking-[0.2em] mt-0.5">Verified Health Profile</div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: "0.75rem" }}>
+      {/* Main Navigation */}
+      <nav className="p-4 space-y-1">
+        <div className="px-4 py-2 font-display text-[9px] font-black text-text-muted uppercase tracking-[0.3em] mb-2">Personal Health Systems</div>
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -89,70 +90,58 @@ export function PatientSidebar() {
             <Link
               key={item.href}
               href={item.href}
-              style={{
-                display: "flex", alignItems: "center", gap: "0.625rem",
-                padding: "0.5rem 0.625rem", textDecoration: "none",
-                color: isActive ? "var(--accent-secondary)" : "var(--text-secondary)",
-                background: isActive ? "rgba(0,180,216,0.06)" : "transparent",
-                borderLeft: isActive ? "2px solid var(--accent-secondary)" : "2px solid transparent",
-                fontFamily: "var(--font-body)", fontSize: "0.875rem",
-                marginBottom: "2px", transition: "all 0.15s",
-              }}
+              className={`flex items-center gap-4 px-4 py-3 font-display text-[11px] font-bold tracking-widest uppercase transition-all group ${
+                isActive 
+                  ? "bg-accent-primary text-bg-base shadow-[0_0_20px_var(--accent-glow)] translate-x-2" 
+                  : "text-text-secondary hover:text-white hover:bg-white/5"
+              }`}
             >
-              <Icon size={15} />
+              <Icon className={`w-4 h-4 ${isActive ? "text-bg-base" : "text-accent-primary/60 group-hover:text-accent-primary"}`} />
               {item.label}
+              {isActive && <ChevronRight className="ml-auto w-3 h-3" />}
             </Link>
           );
         })}
       </nav>
 
-      {/* Telegram section */}
-      <div style={{ padding: "0.75rem", borderTop: "1px solid var(--bg-border)" }}>
-        <div style={{ marginBottom: "0.5rem" }}>
+      {/* Security Hub / Telegram */}
+      <div className="mt-auto p-6 space-y-4">
+        <div className="glass-panel p-5 bg-white/[0.02] border-white/5">
+          <h4 className="font-display text-[9px] font-black text-white uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+            <Send className="w-3 h-3 text-accent-primary" /> Intelligence Link
+          </h4>
+          
           {user?.telegramHandle ? (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.375rem", fontFamily: "var(--font-body)", fontSize: "0.75rem", color: "var(--risk-safe)" }}>
-              <span>🟢</span> Alerts Connected
+            <div className="flex items-center gap-2 px-3 py-2 bg-risk-safe/10 border border-risk-safe/20 rounded-sm">
+              <div className="w-1.5 h-1.5 rounded-full bg-risk-safe animate-pulse" />
+              <span className="font-display text-[9px] font-bold text-risk-safe uppercase tracking-widest">Active Link: {user.telegramHandle}</span>
             </div>
           ) : (
-            <div>
-              <input
-                type="text"
-                placeholder="@telegram_handle"
+            <div className="space-y-2">
+              <input 
                 value={telegramHandle}
                 onChange={(e) => setTelegramHandle(e.target.value)}
-                style={{
-                  width: "100%", padding: "0.375rem 0.5rem",
-                  background: "var(--bg-elevated)", border: "1px solid var(--bg-border)",
-                  color: "var(--text-primary)", fontFamily: "var(--font-body)",
-                  fontSize: "0.75rem", outline: "none", marginBottom: "0.375rem",
-                }}
+                placeholder="@handle" 
+                className="w-full bg-bg-base/40 border border-white/5 px-3 py-2 text-[10px] font-display uppercase tracking-widest outline-none focus:border-accent-primary/30 transition-all"
               />
-              <button
+              <button 
                 onClick={handleConnect}
                 disabled={connecting}
-                style={{
-                  width: "100%", padding: "0.375rem", background: "transparent",
-                  border: "1px solid var(--accent-secondary)", color: "var(--accent-secondary)",
-                  fontFamily: "var(--font-display)", fontSize: "0.625rem",
-                  letterSpacing: "0.08em", cursor: "pointer",
-                }}
+                className="w-full py-2 bg-accent-primary/10 border border-accent-primary/20 text-accent-primary font-display text-[9px] font-black uppercase tracking-[0.2em] hover:bg-accent-primary hover:text-bg-base transition-all"
               >
-                {connecting ? "CONNECTING..." : "CONNECT TELEGRAM"}
+                {connecting ? "Linking..." : "Establish Link"}
               </button>
             </div>
           )}
         </div>
-        <button
+
+        <button 
           onClick={handleLogout}
-          style={{
-            width: "100%", padding: "0.375rem 0.5rem", background: "transparent",
-            border: "none", color: "var(--text-muted)", fontFamily: "var(--font-body)",
-            fontSize: "0.8125rem", cursor: "pointer", textAlign: "left",
-          }}
+          className="flex items-center gap-4 w-full px-4 py-3 font-display text-[10px] font-black tracking-[0.3em] uppercase text-text-muted hover:text-risk-critical hover:bg-risk-critical/10 transition-all"
         >
-          ⎋ Log Out
+          <LogOut className="w-4 h-4" /> End Session
         </button>
       </div>
-    </div>
+    </aside>
   );
 }

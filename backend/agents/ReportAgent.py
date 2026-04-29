@@ -24,6 +24,7 @@ def run(state: PipelineState) -> PipelineState:
         "actionRequired": recommendation.get("action_required", ""),
         "resistanceScores": state.get("resistance_scores") or {},
         "similarCases": state.get("similar_cases") or [],
+        "dockingResults": state.get("docking_results") or [],
         "admetScores": {},
     }
 

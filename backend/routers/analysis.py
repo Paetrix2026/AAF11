@@ -126,9 +126,8 @@ async def run_pipeline_task(
         similar_cases = await fetch_similar_cases(patient_id, pathogen, pool)
         initial_state["similar_cases"] = similar_cases
 
-        # Run synchronously in thread pool to not block event loop
-        loop = asyncio.get_event_loop()
-        final_state = await loop.run_in_executor(None, graph.invoke, initial_state)
+        # Run asynchronously
+        final_state = await graph.ainvoke(initial_state)
 
         # Parse report
         result = json.loads(final_state.get("report") or "{}")

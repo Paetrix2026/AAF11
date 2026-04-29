@@ -1,6 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
 
 interface RiskBadgeProps {
   level: "critical" | "high" | "moderate" | "low" | "safe";
@@ -8,60 +8,26 @@ interface RiskBadgeProps {
   size?: "sm" | "md";
 }
 
-const RISK_COLORS: Record<string, string> = {
-  critical: "var(--risk-critical)",
-  high: "var(--risk-high)",
-  moderate: "var(--risk-moderate)",
-  low: "var(--risk-low)",
-  safe: "var(--risk-safe)",
-};
-
-const RISK_LABELS: Record<string, string> = {
-  critical: "CRITICAL",
-  high: "HIGH",
-  moderate: "MODERATE",
-  low: "LOW",
-  safe: "SAFE",
-};
-
-export function RiskBadge({ level, pulse = false, size = "md" }: RiskBadgeProps) {
-  const color = RISK_COLORS[level] ?? "var(--text-muted)";
-  const label = RISK_LABELS[level] ?? level.toUpperCase();
-  const padding = size === "sm" ? "0.2rem 0.5rem" : "0.25rem 0.625rem";
-  const fontSize = size === "sm" ? "0.625rem" : "0.6875rem";
-
-  const badge = (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "0.375rem",
-        padding,
-        background: `${color}15`,
-        border: `1px solid ${color}40`,
-        color,
-        fontFamily: "var(--font-display)",
-        fontSize,
-        letterSpacing: "0.1em",
-        borderRadius: "2px",
-      }}
-    >
-      <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: color, flexShrink: 0 }} />
-      {label}
-    </span>
-  );
-
-  if (pulse) {
-    return (
-      <motion.div
-        animate={{ scale: [1, 1.05, 1] }}
-        transition={{ repeat: Infinity, duration: 2 }}
-        style={{ display: "inline-flex" }}
-      >
-        {badge}
-      </motion.div>
-    );
+export function RiskBadge({ level, size = "md" }: RiskBadgeProps) {
+  let variant: "default" | "destructive" | "secondary" | "outline" = "default";
+  
+  switch (level) {
+    case "critical":
+    case "high":
+      variant = "destructive";
+      break;
+    case "moderate":
+      variant = "secondary";
+      break;
+    case "low":
+    case "safe":
+      variant = "outline";
+      break;
   }
-
-  return badge;
+  
+  return (
+    <Badge variant={variant} className={size === "sm" ? "px-1.5 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs"}>
+      {level.toUpperCase()}
+    </Badge>
+  );
 }

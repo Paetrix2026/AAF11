@@ -2,9 +2,9 @@ import { DoctorSidebar } from "@/components/sidebar/DoctorSidebar";
 
 export default function DoctorLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-base)" }}>
+    <div className="flex min-h-screen bg-background text-foreground">
       <DoctorSidebar />
-      <main style={{ flex: 1, marginLeft: "260px", minHeight: "100vh", overflowY: "auto" }}>
+      <main className="flex-1 lg:ml-[280px] min-h-screen overflow-y-auto relative">
         {children}
       </main>
     </div>
