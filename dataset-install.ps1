@@ -74,15 +74,14 @@ if (!$success) {
 Write-Host "[+] Initializing Local Neural Index (SQLITE)..." -ForegroundColor Yellow
 Write-Host "    This processes 1.7GB of genomics data. Please wait." -ForegroundColor Gray
 
-if (Test-Path "backend") {
-    # Run the force_index script
-    cd backend
+if (Test-Path "$PSScriptRoot\backend") {
+    Set-Location "$PSScriptRoot\backend"
     uv run python scratch/force_index.py
-    cd ..
+    Set-Location "$PSScriptRoot"
+
+    Write-Host "`n[SUCCESS] Local dataset is ready for high-speed diagnostic searches." -ForegroundColor Green
+    Write-Host "[*] You can now use the 'Local Vault' search in the Pipeline Engine." -ForegroundColor Cyan
 } else {
     Write-Host "[!] ERROR: Could not find backend directory." -ForegroundColor Red
     exit 1
-}
-
-Write-Host "`n[SUCCESS] Local dataset is ready for high-speed diagnostic searches." -ForegroundColor Green
 Write-Host "[*] You can now use the 'Local Vault' search in the Pipeline Engine." -ForegroundColor Cyan
