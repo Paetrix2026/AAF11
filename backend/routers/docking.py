@@ -90,7 +90,8 @@ async def perform_docking(
                 ligand_pdbqt = os.path.join(tmpdir, f"{compound['name']}.pdbqt")
                 output_pdbqt = os.path.join(tmpdir, f"{compound['name']}_out.pdbqt")
                 
-                if preparer.prepare(compound["smiles"], ligand_pdbqt):
+                try:
+                    preparer.prepare(compound["smiles"], ligand_pdbqt)
                     affinity, seed = run_vina_docking(
                         actual_receptor_path, ligand_pdbqt, output_pdbqt,
                         center=(center_x, center_y, center_z),
@@ -102,8 +103,17 @@ async def perform_docking(
                         "smiles": compound["smiles"],
                         "affinity": affinity,
                         "seed": seed,
-                        "status": "success" if affinity is not None else "failed",
+                        "status": "success",
                         "ligand_pdb": open(ligand_pdbqt, "r").read() if os.path.exists(ligand_pdbqt) else None
+                    })
+                except Exception as e:
+                    logger.error(f"Compound {compound['name']} failed: {e}")
+                    results.append({
+                        "name": compound["name"],
+                        "smiles": compound["smiles"],
+                        "affinity": None,
+                        "status": "failed",
+                        "error": str(e)
                     })
 
             # Return results
@@ -115,20 +125,14 @@ async def perform_docking(
                     "target": target,
                     "pdb_content": pdb_content,
                 },
-                message="Molecular docking screening completed successfully."
+                message="Molecular docking screening process finished. Check individual compound status for failures."
             )
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Standalone docking error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Standalone docking error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"STRICT_PIPELINE_ERROR: {e}")
+        raise HTTPException(status_code=500, detail=f"STRICT_PIPELINE_ERROR: {str(e)}")
 
 @router.get("/screening-compounds", response_model=APIResponse)
 async def get_screening_compounds():

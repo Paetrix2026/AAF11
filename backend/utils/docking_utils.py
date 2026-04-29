@@ -2,7 +2,6 @@ import os
 import subprocess
 import tempfile
 import shutil
-import time
 import platform
 from typing import Optional, List, Dict, Tuple
 from dataclasses import dataclass
@@ -22,48 +21,39 @@ SCREENING_COMPOUNDS = [
 
 @dataclass
 class DockingResult:
-    """Type-safe docking result container."""
     smiles: str
     compound_name: str
     mutant_affinity: float
     wt_affinity: Optional[float] = None
     delta_ddg: Optional[float] = None
-    complex_pdb_path: Optional[str] = None
-    ligand_pdb_path: Optional[str] = None
-    protein_pdb_path: Optional[str] = None
-    is_validated: bool = True
+    ligand_pdb: Optional[str] = None
+    status: str = "success"
     error: Optional[str] = None
 
 class ProteinPreparer:
-    """Handles PDB → PDBQT structure preparation and cleanup."""
-
-    def __init__(self):
-        self.log = logger
+    """STRICT Protein Preparation: Fails loudly if any step fails."""
 
     async def prepare(self, pdb_content: str, pdb_id: str, output_dir: str) -> str:
-        """Prepare protein for docking with cleaning and hydrogen addition."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Step 1: Write input PDB
             pdb_path = os.path.join(tmpdir, f"{pdb_id}.pdb")
             with open(pdb_path, "w") as f:
                 f.write(pdb_content)
             
-            # Step 2: Clean structure (remove water, ligands)
             cleaned_pdb = os.path.join(tmpdir, f"{pdb_id}_cleaned.pdb")
             self._clean_pdb(pdb_path, cleaned_pdb)
             
-            # Step 3: Add hydrogens using Open Babel
             hydrogenated_pdb = os.path.join(tmpdir, f"{pdb_id}_H.pdb")
             self._add_hydrogens(cleaned_pdb, hydrogenated_pdb)
             
-            # Step 4: Convert to PDBQT
             pdbqt_path = os.path.join(output_dir, f"{pdb_id}_receptor.pdbqt")
             self._convert_to_pdbqt(hydrogenated_pdb, pdbqt_path)
             
+            if not os.path.exists(pdbqt_path):
+                raise RuntimeError(f"STRICT_FAIL: Receptor PDBQT was not generated for {pdb_id}")
+                
             return pdbqt_path
 
     def _clean_pdb(self, input_pdb: str, output_pdb: str) -> None:
-        """Remove water and heteroatoms to keep only standard residues."""
         standard_residues = {
             "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY",
             "HIS", "ILE", "LEU", "LYS", "MET", "PHE", "PRO", "SER",
@@ -78,105 +68,74 @@ class ProteinPreparer:
                     if line.startswith("HETATM") and res_name not in standard_residues:
                         continue
                     cleaned_lines.append(line)
-                elif line.startswith(("TER", "END")):
+                elif line.startswith(("TER", "END", "CONECT")):
                     cleaned_lines.append(line)
         
+        if not cleaned_lines:
+            raise RuntimeError(f"STRICT_FAIL: No valid ATOM records found in {input_pdb} after cleaning.")
+            
         with open(output_pdb, "w") as f:
             f.writelines(cleaned_lines)
 
     def _add_hydrogens(self, input_pdb: str, output_pdb: str) -> None:
-        obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
-        subprocess.run([obabel_path, input_pdb, "-O", output_pdb, "-h"], capture_output=True, creationflags=CREATE_NO_WINDOW)
-        if not os.path.exists(output_pdb):
-            shutil.copy(input_pdb, output_pdb)
+        obabel = shutil.which("obabel")
+        if not obabel:
+            raise RuntimeError("STRICT_FAIL: 'obabel' executable not found in PATH.")
+            
+        result = subprocess.run([obabel, input_pdb, "-O", output_pdb, "-h"], capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
+        if result.returncode != 0 or not os.path.exists(output_pdb):
+            raise RuntimeError(f"STRICT_FAIL: obabel hydrogen addition failed.\nError: {result.stderr}")
 
     def _convert_to_pdbqt(self, input_pdb: str, output_pdbqt: str) -> None:
-        obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
-        subprocess.run([obabel_path, input_pdb, "-O", output_pdbqt, "-xr"], capture_output=True, creationflags=CREATE_NO_WINDOW)
-        if not os.path.exists(output_pdbqt):
-             subprocess.run([obabel_path, input_pdb, "-O", output_pdbqt], capture_output=True, creationflags=CREATE_NO_WINDOW)
+        obabel = shutil.which("obabel")
+        # Use -xr for atom typing (required for Vina)
+        result = subprocess.run([obabel, input_pdb, "-O", output_pdbqt, "-xr"], capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
+        if result.returncode != 0 or not os.path.exists(output_pdbqt):
+             raise RuntimeError(f"STRICT_FAIL: obabel PDBQT conversion failed.\nError: {result.stderr}")
 
 class LigandPreparer:
-    """Handles SMILES → PDBQT preparation using RDKit for 3D generation."""
+    """STRICT Ligand Preparation: No fallbacks, no mocks."""
 
     def prepare(self, smiles: str, output_path: str) -> bool:
         from rdkit import Chem
         from rdkit.Chem import AllChem
         
-        try:
-            # 1. Generate 3D structure with RDKit
-            mol = Chem.MolFromSmiles(smiles)
-            if mol is None:
-                logger.error(f"Failed to parse SMILES: {smiles}")
-                return False
-            
-            mol = Chem.AddHs(mol)
-            
-            # Try ETKDG v3 (correct modern RDKit API)
-            params = AllChem.ETKDGv3()
-            params.randomSeed = 42
-            res = AllChem.EmbedMolecule(mol, params)
-            
-            # Fallback 1: Permissive MMFF
-            if res == -1:
-                logger.warning(f"ETKDG v3 failed for {smiles}, trying permissive embedding")
-                res = AllChem.EmbedMolecule(mol, randomSeed=42, maxAttempts=5000)
-                
-            # Fallback 2: Open Babel --gen3d
-            if res == -1:
-                logger.warning(f"RDKit embedding failed for {smiles}, using Open Babel")
-                obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
-                with tempfile.NamedTemporaryFile(suffix=".sdf", delete=False) as tmp:
-                    tmp_sdf = tmp.name
-                
-                cmd = [obabel_path, "-ismi", "-", "-osdf", "-O", tmp_sdf, "--gen3d", "-h"]
-                process = subprocess.Popen(
-                    cmd,
-                    stdin=subprocess.PIPE,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    creationflags=CREATE_NO_WINDOW,
-                )
-                process.communicate(input=smiles)
-                
-                if os.path.exists(tmp_sdf) and os.path.getsize(tmp_sdf) > 0:
-                    suppl = Chem.SDMolSupplier(tmp_sdf)
-                    if suppl and len(suppl) > 0:
-                        mol = suppl[0]
-                        res = 0 # Success for the sake of the pipeline
-                    os.remove(tmp_sdf)
+        # 1. RDKit 3D Embed
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            raise RuntimeError(f"STRICT_FAIL: RDKit failed to parse SMILES: {smiles}")
+        
+        mol = Chem.AddHs(mol)
+        params = AllChem.ETKDGv3()
+        params.randomSeed = 42
+        res = AllChem.EmbedMolecule(mol, params)
+        
+        if res == -1:
+            raise RuntimeError(f"STRICT_FAIL: RDKit 3D embedding failed for {smiles}. No fallback allowed.")
 
-            if res == -1:
-                logger.error(f"[v3] FATAL: All 3D generation methods failed for {smiles}")
-                return False
+        # Success: Export SDF via TemporaryDirectory to avoid WinError 32
+        AllChem.UFFOptimizeMolecule(mol)
+        
+        obabel = shutil.which("obabel")
+        if not obabel:
+            raise RuntimeError("STRICT_FAIL: 'obabel' not found in PATH.")
 
-            # Optimize geometry
-            try:
-                AllChem.UFFOptimizeMolecule(mol)
-            except Exception as e:
-                logger.warning(f"UFF Optimization failed for {smiles}: {e}")
-
-            # 2. Save to temporary SDF
-            with tempfile.NamedTemporaryFile(suffix=".sdf", delete=False) as tmp:
-                tmp_sdf = tmp.name
+        with tempfile.TemporaryDirectory() as tmpdir:
+            sdf_path = os.path.join(tmpdir, "ligand.sdf")
+            writer = Chem.SDWriter(sdf_path)
+            writer.write(mol)
+            writer.close() # Release handle for Windows
             
-            with open(tmp_sdf, "w") as f:
-                f.write(Chem.MolToMolBlock(mol))
-            
-            # 3. Convert SDF to PDBQT with Open Babel
-            obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
-            cmd = [obabel_path, tmp_sdf, "-O", output_path, "-h"]
+            cmd = [obabel, sdf_path, "-O", output_path, "-xh"]
             result = subprocess.run(cmd, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
             
-            # Cleanup
-            if os.path.exists(tmp_sdf):
-                os.remove(tmp_sdf)
-                
-            return os.path.exists(output_path) and os.path.getsize(output_path) > 0
-        except Exception as e:
-            logger.error(f"Ligand prep failed: {e}")
-            return False
+            if result.returncode != 0:
+                raise RuntimeError(f"STRICT_FAIL: obabel failed to convert ligand SDF to PDBQT.\nError: {result.stderr}")
+
+        if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
+            raise RuntimeError(f"STRICT_FAIL: Ligand PDBQT not created or empty for {smiles}")
+            
+        return True
 
 def run_vina_docking(
     receptor_path: str,
@@ -185,53 +144,50 @@ def run_vina_docking(
     center: tuple = (0, 0, 0),
     size: tuple = (20, 20, 20),
     exhaustiveness: int = 8
-) -> Tuple[Optional[float], Optional[int]]:
-    vina_path = shutil.which("vina") or r"C:\tools\vina.EXE"
-    if not os.path.exists(vina_path) and shutil.which("vina") is None:
-        logger.error("Vina binary not found")
-        return None, None
+) -> Tuple[float, int]:
+    
+    vina = shutil.which("vina")
+    if not vina:
+        raise RuntimeError("STRICT_FAIL: 'vina' executable not found in PATH.")
 
-    try:
-        cmd = [
-            vina_path if os.path.exists(vina_path) else "vina",
-            "--receptor", receptor_path,
-            "--ligand", ligand_path,
-            "--out", output_path,
-            "--center_x", str(center[0]),
-            "--center_y", str(center[1]),
-            "--center_z", str(center[2]),
-            "--size_x", str(size[0]),
-            "--size_y", str(size[1]),
-            "--size_z", str(size[2]),
-            "--exhaustiveness", str(exhaustiveness)
-        ]
+    cmd = [
+        vina,
+        "--receptor", receptor_path,
+        "--ligand", ligand_path,
+        "--out", output_path,
+        "--center_x", str(center[0]),
+        "--center_y", str(center[1]),
+        "--center_z", str(center[2]),
+        "--size_x", str(size[0]),
+        "--size_y", str(size[1]),
+        "--size_z", str(size[2]),
+        "--exhaustiveness", str(exhaustiveness)
+    ]
+    
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=600, creationflags=CREATE_NO_WINDOW)
+    if result.returncode != 0:
+        raise RuntimeError(f"STRICT_FAIL: AutoDock Vina execution failed.\nError: {result.stderr}")
+
+    affinity, seed = parse_vina_output(result.stdout)
+    if affinity is None:
+        raise RuntimeError(f"STRICT_FAIL: Vina output parsing failed. No affinity found.\nFull Output:\n{result.stdout}")
         
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, creationflags=CREATE_NO_WINDOW)
-        if result.returncode != 0:
-            logger.error(f"Vina failed: {result.stderr}")
-            return None, None
-
-        return parse_vina_output(result.stdout)
-    except Exception as e:
-        logger.error(f"Vina execution error: {e}")
-        return None, None
+    return affinity, seed
 
 def parse_vina_output(stdout: str) -> Tuple[Optional[float], Optional[int]]:
     affinity = None
     seed = None
-    try:
-        for line in stdout.splitlines():
-            if "Random seed:" in line:
-                try:
-                    seed = int(line.split(":")[1].strip())
-                except:
-                    pass
-            parts = line.split()
-            if affinity is None and len(parts) >= 2 and parts[0].isdigit():
-                try:
-                    affinity = float(parts[1])
-                except:
-                    pass
-        return affinity, seed
-    except Exception:
-        return affinity, seed
+    for line in stdout.splitlines():
+        if "Random seed:" in line:
+            try: seed = int(line.split(":")[1].strip())
+            except: pass
+        
+        tokens = line.split()
+        if tokens and tokens[0].isdigit() and len(tokens) >= 2:
+            try:
+                val = float(tokens[1])
+                if -20 < val < 0:
+                    affinity = val
+                    break
+            except: pass
+    return affinity, seed

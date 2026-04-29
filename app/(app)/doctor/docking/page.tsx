@@ -140,26 +140,28 @@ export default function DockingPage() {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`${cardStyle} lg:col-span-4 flex flex-col h-[800px]`}
+            className={`${cardStyle} lg:col-span-4 flex flex-col h-[calc(100vh-8rem)] min-h-[800px] max-h-[900px]`}
           >
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full">
-              <TabsList className="w-full h-16 rounded-none bg-slate-50 p-2 flex gap-2 border-b border-slate-100">
-                <TabsTrigger 
-                  value="receptor" 
-                  className="flex-1 h-full rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-slate-900 text-[10px] font-bold uppercase tracking-widest text-slate-400"
-                >
-                  Target Setup
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="results" 
-                  className="flex-1 h-full rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-slate-900 text-[10px] font-bold uppercase tracking-widest text-slate-400"
-                  disabled={!result}
-                >
-                  Analysis Repo
-                </TabsTrigger>
-              </TabsList>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col h-full overflow-hidden">
+              <div className="px-8 pt-8 bg-white/50 backdrop-blur-sm z-10">
+                <TabsList className="w-full h-12 rounded-2xl bg-slate-100/50 p-1 flex gap-1 border border-slate-200/50">
+                  <TabsTrigger 
+                    value="receptor" 
+                    className="flex-1 h-full rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-slate-900 text-[10px] font-bold uppercase tracking-widest text-slate-400 transition-all duration-300"
+                  >
+                    Target Setup
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="results" 
+                    className="flex-1 h-full rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-slate-900 text-[10px] font-bold uppercase tracking-widest text-slate-400 transition-all duration-300"
+                    disabled={!result}
+                  >
+                    Analysis Repo
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
-              <ScrollArea className="flex-1 custom-scrollbar">
+              <ScrollArea className="flex-1">
                 <div className="p-8 space-y-8">
                   <TabsContent value="receptor" className="mt-0 space-y-10">
                     {/* Priority Pathogens */}

@@ -1,34 +1,49 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import declarative_base
+import asyncpg
 from app.core.config import settings
+import logging
 
-DATABASE_URL = settings.DATABASE_URL
+logger = logging.getLogger(__name__)
 
-engine = create_async_engine(DATABASE_URL, echo=settings.DEBUG)
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+# Neon connection details from URL
+DATABASE_URL = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
 
-Base = declarative_base()
+class NeonDB:
+    def __init__(self):
+        self.pool = None
+
+    async def connect(self):
+        if not self.pool:
+            try:
+                self.pool = await asyncpg.create_pool(DATABASE_URL)
+                logger.info("Connected to Neon PostgreSQL")
+            except Exception as e:
+                logger.error(f"Failed to connect to Neon: {e}")
+                raise e
+
+    async def disconnect(self):
+        if self.pool:
+            await self.pool.close()
+            self.pool = None
+
+    async def fetch_one(self, query, *args):
+        async with self.pool.acquire() as conn:
+            return await conn.fetchrow(query, *args)
+
+    async def fetch_all(self, query, *args):
+        async with self.pool.acquire() as conn:
+            return await conn.fetch(query, *args)
+
+    async def execute(self, query, *args):
+        async with self.pool.acquire() as conn:
+            return await conn.execute(query, *args)
+
+db_pool = NeonDB()
 
 async def init_db():
-    async with engine.begin() as conn:
-        # Import models here to ensure they are registered with Base
-        from app.db.models.user import User
-        from app.db.models.doctor import Doctor
-        from app.db.models.patient import Patient, DoctorPatient
-        from app.db.models.diagnosis import Diagnosis
-        from app.db.models.medication import Medication, MedicationLog
-        from app.db.models.recovery import SymptomCheckin, RecoveryScore
-        from app.db.models.report import Report, CalendarEvent
-        from app.db.models.notification import Notification
-        from app.db.models.sos import SOSRequest
-        from app.db.models.chat import ChatMessage
-        
-        await conn.run_sync(Base.metadata.create_all)
+    await db_pool.connect()
 
 async def get_db():
-    async with AsyncSessionLocal() as session:
-        yield session
+    if not db_pool.pool:
+        await db_pool.connect()
+    async with db_pool.pool.acquire() as conn:
+        yield conn

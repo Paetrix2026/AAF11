@@ -28,9 +28,7 @@ rdkit==2024.9.5
 biopython==1.84
 
 # Database
-sqlalchemy==2.0.27
 asyncpg==0.30.0
-alembic==1.13.1
 
 # HTTP
 requests==2.32.3
