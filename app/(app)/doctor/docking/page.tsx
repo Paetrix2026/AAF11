@@ -20,6 +20,7 @@ import {
   ExternalLink,
   Download,
   Share2,
+  Dna,
   Cpu,
   RefreshCw,
   Box,
@@ -31,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { getScreeningCompounds } from "@/lib/api";
+import { getScreeningCompounds, searchPathogens, searchLocal, searchOnline } from "@/lib/api";
 import { Molecule3DViewer } from "@/components/molecules/Molecule3DViewer";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -43,7 +44,13 @@ export default function DockingPage() {
   const [selectedResult, setSelectedResult] = useState<any>(null);
   const [target, setTarget] = useState("");
   const [activeTab, setActiveTab] = useState("receptor");
+  const [discoveries, setDiscoveries] = useState<any[]>([]);
+  const [discoverySearch, setDiscoverySearch] = useState("");
   const [exhaustiveness, setExhaustiveness] = useState(8);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   // Grid box parameters
   const [grid, setGrid] = useState({
@@ -68,7 +75,22 @@ export default function DockingPage() {
     getScreeningCompounds().then(res => {
       // Logic for compounds
     });
+
+    // Fetch saved discoveries for the "Analysis Repo" search
+    fetch("/api/discoveries")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setDiscoveries(data.data);
+      })
+      .catch(err => console.error("Failed to load discoveries:", err));
   }, []);
+
+  const filteredDiscoveries = discoveries.filter(
+    (d: any) =>
+      d.query?.toLowerCase().includes(discoverySearch.toLowerCase()) ||
+      d.gene?.toLowerCase().includes(discoverySearch.toLowerCase()) ||
+      d.mutation?.toLowerCase().includes(discoverySearch.toLowerCase())
+  );
 
   const handleGenerateReport = () => {
     if (!result) return;
@@ -166,6 +188,39 @@ export default function DockingPage() {
     }
   };
 
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    if (query.length < 2) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setSearchLoading(true);
+    setShowSearchResults(true);
+    setSearchResults([]); // Clear for new search
+
+    try {
+      // 1. Fire Local Search (Instant)
+      searchLocal(query).then(localData => {
+        setSearchResults(prev => [...prev, ...localData]);
+      }).catch(err => console.error("Local search failed:", err));
+
+      // 2. Fire Online Search (Async)
+      const onlineData = await searchOnline(query);
+      setSearchResults(prev => {
+        // Only add if not already in results (avoid duplicates from cache/local)
+        const existingIds = new Set(prev.map(r => r.id));
+        const newItems = onlineData.filter(r => !existingIds.has(r.id));
+        return [...prev, ...newItems];
+      });
+    } catch (error) {
+      console.error("Online search failed:", error);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
   const DecisionMatrixChart = () => {
     if (!result?.results) return null;
     
@@ -214,7 +269,7 @@ export default function DockingPage() {
     );
   };
 
-  const cardStyle = "bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-slate-50 relative overflow-hidden";
+  const cardStyle = "bg-white rounded-[2.5rem] border border-slate-100 relative overflow-hidden";
 
   return (
     <div className="h-screen bg-[#f8fafc] flex flex-col overflow-hidden">
@@ -232,35 +287,50 @@ export default function DockingPage() {
           </div>
           
           <div className="flex items-center gap-4">
-             <div className="px-4 py-2 bg-emerald-50 rounded-2xl flex items-center gap-3 border border-emerald-100 shadow-sm">
+             <div className="px-4 py-2 bg-emerald-50 rounded-2xl flex items-center gap-3 border border-emerald-100">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Cluster Online</span>
              </div>
           </div>
         </header>
 
-        {/* Stepper Section */}
-        <div className="flex items-center justify-center shrink-0">
-          <div className="bg-white/50 backdrop-blur-md px-6 py-3 rounded-3xl border border-slate-200/50 shadow-sm flex items-center gap-8">
-            {steps.map((s, idx) => (
-              <div key={s.id} className="flex items-center gap-3">
-                <div 
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-500 ${
-                    currentStep >= s.id ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "bg-slate-100 text-slate-400"
-                  }`}
-                >
-                  <s.icon className="w-4 h-4" />
-                </div>
-                <span className={`text-[10px] font-bold uppercase tracking-widest ${
-                  currentStep >= s.id ? "text-slate-900" : "text-slate-400"
-                }`}>
-                  {s.name}
-                </span>
-                {idx < steps.length - 1 && (
-                  <div className="w-12 h-[1px] bg-slate-200 ml-4" />
-                )}
-              </div>
-            ))}
+        {/* Stepper Section - FULL WIDTH BENTO STYLE */}
+        <div className="shrink-0">
+          <div className="bg-white/50 backdrop-blur-xl border border-slate-200/50 rounded-[2rem] p-4">
+             <div className="max-w-[1200px] mx-auto grid grid-cols-3 gap-4">
+                {steps.map((s, idx) => (
+                  <div key={s.id} className="relative flex items-center justify-center gap-4 group">
+                    <div 
+                      className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 border-2 ${
+                        currentStep >= s.id 
+                          ? "bg-emerald-500 border-emerald-500 text-white" 
+                          : "bg-slate-50 border-slate-100 text-slate-300"
+                      }`}
+                    >
+                      <s.icon className="w-5 h-5" />
+                    </div>
+                    <div className="flex flex-col">
+                       <span className={`text-[8px] font-black uppercase tracking-[0.2em] mb-0.5 ${
+                          currentStep >= s.id ? "text-emerald-500" : "text-slate-300"
+                       }`}>
+                          Step 0{s.id}
+                       </span>
+                       <span className={`text-[11px] font-bold uppercase tracking-widest ${
+                         currentStep >= s.id ? "text-slate-900" : "text-slate-400"
+                       }`}>
+                         {s.name}
+                       </span>
+                    </div>
+                    {idx < steps.length - 1 && (
+                      <div className="absolute -right-2 top-1/2 -translate-y-1/2 hidden lg:block">
+                         <div className={`w-8 h-[2px] rounded-full transition-all duration-1000 ${
+                            currentStep > s.id ? "bg-emerald-500" : "bg-slate-100"
+                         }`} />
+                      </div>
+                    )}
+                  </div>
+                ))}
+             </div>
           </div>
         </div>
 
@@ -310,10 +380,10 @@ export default function DockingPage() {
                                 toast.success(`Target: ${t.id} established`);
                               }}
                               className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all group ${
-                                target === t.id 
-                                  ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" 
-                                  : "bg-slate-50 hover:bg-white hover:shadow-md text-slate-600"
-                              }`}
+                                 target === t.id 
+                                   ? "bg-emerald-500 text-white" 
+                                   : "bg-slate-50 hover:bg-white border border-transparent hover:border-slate-200 text-slate-600"
+                               }`}
                             >
                               <div className="flex items-center gap-3">
                                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
@@ -336,20 +406,105 @@ export default function DockingPage() {
                       </div>
 
                       {/* Manual Search */}
-                      <div className="space-y-3">
+                      <div className="space-y-3 relative">
                         <Label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 px-1">Signature Search</Label>
                         <div className="relative group">
                           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />
                           <Input 
-                            placeholder="SEARCH PDB" 
-                            value={pdbId}
-                            onChange={(e) => {
-                              setPdbId(e.target.value.toUpperCase());
-                              setTarget("");
-                            }}
-                            className="pl-11 h-12 bg-slate-50 border-none rounded-2xl font-bold text-xs uppercase tracking-wider focus-visible:ring-2 focus-visible:ring-emerald-500/10 focus-visible:bg-white transition-all shadow-sm"
+                            placeholder="SEARCH GENE OR PDB..." 
+                            value={searchQuery || pdbId}
+                            onChange={(e) => handleSearch(e.target.value)}
+                            className="pl-11 h-12 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-xs uppercase tracking-wider focus-visible:ring-2 focus-visible:ring-emerald-500/10 focus-visible:bg-white transition-all"
                           />
+                          {searchLoading && (
+                             <RefreshCw className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-emerald-500 animate-spin" />
+                          )}
                         </div>
+
+                        {/* Search Results Dropdown */}
+                        <AnimatePresence>
+                          {showSearchResults && (searchQuery.length >= 2 || searchResults.length > 0) && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: 10 }}
+                               className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-[2rem] overflow-hidden z-50"
+                            >
+                              <div className="grid grid-cols-2 divide-x divide-slate-100 h-[320px]">
+                                {/* Left: Local */}
+                                <div className="flex flex-col min-w-0">
+                                  <div className="p-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Local Vault</span>
+                                    {searchLoading && <RefreshCw className="w-2.5 h-2.5 text-emerald-500 animate-spin" />}
+                                  </div>
+                                  <ScrollArea className="flex-1">
+                                    <div className="p-2 space-y-1">
+                                      {searchResults.filter(r => r.source === 'local').length === 0 ? (
+                                        <div className="py-12 text-center opacity-30 text-[9px] font-bold uppercase tracking-widest">
+                                          {searchLoading ? "Scanning Vault..." : searchQuery ? "No Local Data" : "Ready for Input..."}
+                                        </div>
+                                      ) : (
+                                        searchResults.filter(r => r.source === 'local').map((res, idx) => (
+                                          <button
+                                            key={idx}
+                                            onClick={() => {
+                                              setPdbId(res.id.includes(':') ? res.id.split(':')[1] : res.id);
+                                              setTarget(res.name);
+                                              setSearchQuery(res.name);
+                                              setShowSearchResults(false);
+                                              toast.success(`Loaded Local: ${res.name}`);
+                                            }}
+                                            className="w-full p-3 rounded-xl hover:bg-slate-50 transition-all text-left group"
+                                          >
+                                            <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider truncate">{res.name}</div>
+                                            <div className="text-[8px] text-slate-400 font-medium uppercase truncate mt-1">{res.description}</div>
+                                          </button>
+                                        ))
+                                      )}
+                                    </div>
+                                  </ScrollArea>
+                                </div>
+
+                                {/* Right: Online */}
+                                <div className="flex flex-col min-w-0">
+                                  <div className="p-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Global Repo</span>
+                                    {searchLoading && <RefreshCw className="w-2.5 h-2.5 text-blue-500 animate-spin" />}
+                                  </div>
+                                  <ScrollArea className="flex-1">
+                                    <div className="p-2 space-y-1">
+                                      {searchResults.filter(r => r.source === 'online').length === 0 ? (
+                                        <div className="py-12 text-center opacity-30 text-[9px] font-bold uppercase tracking-widest">
+                                          {searchLoading ? "Consulting UniProt..." : searchQuery ? "No Online Results" : "Awaiting Query..."}
+                                        </div>
+                                      ) : (
+                                        searchResults.filter(r => r.source === 'online').map((res, idx) => (
+                                          <button
+                                            key={idx}
+                                            onClick={() => {
+                                              setPdbId(res.id);
+                                              setTarget(res.name);
+                                              setSearchQuery(res.name);
+                                              setShowSearchResults(false);
+                                              toast.success(`Loaded Global: ${res.name}`);
+                                            }}
+                                            className="w-full p-3 rounded-xl hover:bg-slate-50 transition-all text-left group"
+                                          >
+                                            <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider truncate">{res.name}</div>
+                                            <div className="text-[8px] text-slate-400 font-medium uppercase truncate mt-1">{res.description}</div>
+                                          </button>
+                                        ))
+                                      )}
+                                    </div>
+                                  </ScrollArea>
+                                </div>
+                              </div>
+                              <div className="p-2 bg-slate-50 border-t border-slate-100 text-center">
+                                <button onClick={() => setShowSearchResults(false)} className="text-[8px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest">Close Results</button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     </TabsContent>
 
@@ -372,7 +527,7 @@ export default function DockingPage() {
                                   onClick={() => setSelectedResult(res)}
                                   className={`w-full p-3 rounded-2xl flex justify-between items-center transition-all ${
                                     selectedResult?.name === res.name 
-                                      ? 'bg-slate-900 text-white shadow-xl' 
+                                       ? 'bg-slate-900 text-white' 
                                       : 'bg-white hover:bg-slate-50 border border-slate-100/50'
                                   }`}
                                 >
@@ -439,7 +594,7 @@ export default function DockingPage() {
                     <Button 
                       onClick={handleRunDocking} 
                       disabled={loading || (!pdbId && !target)}
-                      className={`${currentStep > 1 ? 'w-2/3' : 'w-full'} h-14 bg-emerald-500 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all disabled:opacity-50`}
+                      className={`${currentStep > 1 ? 'w-2/3' : 'w-full'} h-14 bg-emerald-500 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:opacity-50`}
                     >
                       {loading ? (
                         <Activity className="w-4 h-4 animate-spin" />
@@ -456,7 +611,7 @@ export default function DockingPage() {
                         if (currentStep === 2) setCurrentStep(3);
                         else setCurrentStep(1);
                       }} 
-                      className={`${currentStep > 1 ? 'w-2/3' : 'w-full'} h-14 bg-slate-900 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest shadow-lg shadow-slate-900/20 hover:bg-slate-800 transition-all`}
+                      className={`${currentStep > 1 ? 'w-2/3' : 'w-full'} h-14 bg-slate-900 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all`}
                     >
                       {currentStep === 2 ? "Next: Intelligence" : "Start New Analysis"}
                       {currentStep === 2 && <ChevronRight className="w-3.5 h-3.5 ml-2" />}
@@ -484,12 +639,12 @@ export default function DockingPage() {
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.1 }}
-                        className={`${cardStyle} flex-1 min-h-[600px] bg-slate-950 shadow-2xl shadow-slate-900/40`}
+                        className={`${cardStyle} flex-1 min-h-[600px] bg-slate-950 border border-white/5`}
                       >
                         {/* Viewport UI Overlay */}
                         <div className="absolute top-8 left-8 z-20 space-y-4 pointer-events-none">
                           <div className="flex items-center gap-3">
-                            <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                            <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
                             <span className="text-[10px] font-bold text-white uppercase tracking-[0.3em] opacity-80">Simulation Engine Active</span>
                           </div>
                           {result && (
@@ -509,14 +664,88 @@ export default function DockingPage() {
                           <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.05)_0%,transparent_70%)]" />
                           
                           {!result ? (
-                            <div className="text-center space-y-6 animate-in fade-in zoom-in duration-1000">
-                              <div className="w-24 h-24 bg-white/5 rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 border border-white/5 relative group">
-                                 <div className="absolute inset-0 bg-emerald-500/10 rounded-[2.5rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                                 <Box className="w-10 h-10 text-white/20 relative z-10" />
+                            <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden">
+                              {/* Neural Background Animation */}
+                              <div className="absolute inset-0 z-0">
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.08)_0%,transparent_70%)]" />
+                                <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(16,185,129,0.05) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+                                {[...Array(3)].map((_, i) => (
+                                  <motion.div
+                                    key={i}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ 
+                                      opacity: [0.1, 0.3, 0.1],
+                                      scale: [1, 1.2, 1],
+                                      rotate: [0, 90, 180, 270, 360]
+                                    }}
+                                    transition={{ 
+                                      duration: 10 + i * 5, 
+                                      repeat: Infinity, 
+                                      ease: "linear" 
+                                    }}
+                                    className="absolute inset-0 flex items-center justify-center"
+                                  >
+                                    <div className="w-[500px] h-[500px] rounded-full border border-emerald-500/10" />
+                                  </motion.div>
+                                ))}
                               </div>
-                              <div>
-                                 <h3 className="text-3xl font-bold text-white tracking-tight">Awaiting Target</h3>
-                                 <p className="text-xs font-medium text-white/30 uppercase tracking-[0.2em] mt-3">Select sequence from registry to begin simulation</p>
+
+                              {/* Central HUD */}
+                              <div className="relative z-10 text-center space-y-8 max-w-md px-6">
+                                <motion.div 
+                                  initial={{ opacity: 0, y: 20 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  className="w-32 h-32 bg-white/5 backdrop-blur-2xl rounded-[3rem] flex items-center justify-center mx-auto border border-white/10 shadow-2xl relative group"
+                                >
+                                   <div className="absolute inset-0 bg-emerald-500/20 rounded-[3rem] blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
+                                   <motion.div
+                                      animate={{ rotate: 360 }}
+                                      transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                                      className="absolute inset-0 border-2 border-dashed border-emerald-500/20 rounded-[3rem] scale-110"
+                                   />
+                                   <Dna className="w-12 h-12 text-emerald-400 relative z-10 animate-pulse" />
+                                </motion.div>
+
+                                <div className="space-y-4">
+                                   <motion.h3 
+                                      initial={{ opacity: 0 }}
+                                      animate={{ opacity: 1 }}
+                                      transition={{ delay: 0.3 }}
+                                      className="text-4xl font-bold text-white tracking-tighter"
+                                   >
+                                      CLUSTER_A1 <span className="text-emerald-500">READY</span>
+                                   </motion.h3>
+                                   <motion.p 
+                                      initial={{ opacity: 0 }}
+                                      animate={{ opacity: 1 }}
+                                      transition={{ delay: 0.4 }}
+                                      className="text-[10px] font-bold text-emerald-500/50 uppercase tracking-[0.4em] leading-loose"
+                                   >
+                                      Awaiting Biological Signature Input<br/>
+                                      To Initialize Molecular Docking Engine
+                                   </motion.p>
+                                </div>
+
+                                {/* HUD Telemetry Lines */}
+                                <div className="grid grid-cols-2 gap-4 pt-8">
+                                   {[
+                                      { label: "NODE_STATUS", val: "STABLE", color: "text-emerald-400" },
+                                      { label: "LATENCY", val: "0.04ms", color: "text-blue-400" },
+                                      { label: "CLUSTER_SYNC", val: "99.9%", color: "text-purple-400" },
+                                      { label: "THROUGHPUT", val: "4.2 TFlops", color: "text-amber-400" }
+                                   ].map((item, i) => (
+                                      <motion.div 
+                                         key={i}
+                                         initial={{ opacity: 0, x: -10 }}
+                                         animate={{ opacity: 1, x: 0 }}
+                                         transition={{ delay: 0.5 + i * 0.1 }}
+                                         className="p-3 bg-white/5 rounded-2xl border border-white/5 text-left backdrop-blur-md"
+                                      >
+                                         <div className="text-[7px] font-bold text-white/30 uppercase tracking-widest mb-1">{item.label}</div>
+                                         <div className={`text-[10px] font-bold ${item.color} tracking-wider`}>{item.val}</div>
+                                      </motion.div>
+                                   ))}
+                                </div>
                               </div>
                             </div>
                           ) : (

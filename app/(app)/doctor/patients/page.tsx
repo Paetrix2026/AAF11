@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getPatients } from "@/lib/api";
 import { RiskBadge } from "@/components/shared/RiskBadge";
+import { Activity, Plus, Search, MapPin, Users, ShieldCheck, ChevronRight } from "lucide-react";
 import type { Patient } from "@/types";
 
 export default function PatientsPage() {
@@ -24,255 +25,162 @@ export default function PatientsPage() {
       (p.location ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
+  const cardStyle = "bg-white/50 backdrop-blur-xl border border-slate-200/50 rounded-[2rem] overflow-hidden transition-all hover:border-slate-300/50";
+  const headerLabelStyle = "text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1";
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="flex flex-col items-center gap-4 text-slate-400">
+          <Activity className="w-8 h-8 animate-spin text-emerald-500" />
+          <p className="text-[10px] font-bold uppercase tracking-widest">Initialising Patient Grid...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ padding: "2rem", maxWidth: "1200px" }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "1.75rem",
-        }}
-      >
-        <h1
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "1.25rem",
-            color: "var(--text-primary)",
-            letterSpacing: "0.05em",
-          }}
-        >
-          PATIENTS
-        </h1>
-        <Link
-          href="/doctor/patients/new"
-          style={{
-            padding: "0.5rem 1rem",
-            background: "var(--accent-primary)",
-            color: "#0a0b0d",
-            fontFamily: "var(--font-display)",
-            fontSize: "0.75rem",
-            fontWeight: "700",
-            letterSpacing: "0.08em",
-            textDecoration: "none",
-          }}
-        >
-          + ADD PATIENT
-        </Link>
+    <div className="p-6 lg:p-10 max-w-[1600px] mx-auto space-y-10">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-emerald-500 font-bold text-[10px] uppercase tracking-[0.3em]">
+            <Users className="w-3.5 h-3.5" />
+            <span>Patient Registry Active</span>
+          </div>
+          <h1 className="text-4xl font-black tracking-tight text-slate-900">Patients</h1>
+          <p className="text-slate-500 text-[11px] font-medium uppercase tracking-widest">
+            Diagnostic database of all registered clinical subjects.
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+           <Link
+             href="/doctor/patients/new"
+             className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-3"
+           >
+             <Plus className="w-4 h-4" />
+             <span>Add Patient</span>
+           </Link>
+        </div>
       </div>
 
-      <input
-        type="text"
-        placeholder="Search patients by name or location..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{
-          width: "100%",
-          padding: "0.75rem 1rem",
-          background: "var(--bg-surface)",
-          border: "1px solid var(--bg-border)",
-          color: "var(--text-primary)",
-          fontFamily: "var(--font-body)",
-          fontSize: "0.875rem",
-          outline: "none",
-          marginBottom: "1.5rem",
-        }}
-      />
+      {/* BENTO GRID */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 auto-rows-auto">
+        
+        {/* Search & Filters - TOP WIDE BLOCK */}
+        <div className={`${cardStyle} lg:col-span-4 p-8 flex items-center gap-6`}>
+           <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by name, ID, or location..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full bg-slate-50/50 border border-slate-100 rounded-2xl py-4 pl-12 pr-6 text-sm font-bold text-slate-900 placeholder:text-slate-300 outline-none focus:border-emerald-500/50 transition-all"
+              />
+           </div>
+           <div className="flex gap-2">
+              <div className="px-4 py-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center gap-3">
+                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total</span>
+                 <span className="text-lg font-black text-slate-900">{patients.length}</span>
+              </div>
+              <div className="px-4 py-4 bg-red-50 rounded-2xl border border-red-100 flex items-center gap-3">
+                 <span className="text-[10px] font-bold uppercase tracking-widest text-red-400">Critical</span>
+                 <span className="text-lg font-black text-red-600">{patients.filter(p => p.status === 'critical').length}</span>
+              </div>
+           </div>
+        </div>
 
-      {loading ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "4rem",
-            fontFamily: "var(--font-display)",
-            color: "var(--accent-primary)",
-            fontSize: "0.875rem",
-            letterSpacing: "0.1em",
-          }}
-        >
-          LOADING...
+        {/* Patients List - MAIN MASSIVE BLOCK */}
+        <div className={`${cardStyle} lg:col-span-4 flex flex-col`}>
+           <div className="p-8 border-b border-slate-100 bg-slate-50/30">
+              <div className="flex items-center justify-between">
+                 <div>
+                    <h4 className={headerLabelStyle}>Database</h4>
+                    <h3 className="text-xl font-bold tracking-tight text-slate-900">Registered Subjects</h3>
+                 </div>
+                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Showing {filtered.length} of {patients.length} records
+                 </div>
+              </div>
+           </div>
+           
+           <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-slate-50 bg-slate-50/50">
+                    <th className="p-6 text-[9px] font-black text-slate-400 uppercase tracking-widest">Patient Details</th>
+                    <th className="p-6 text-[9px] font-black text-slate-400 uppercase tracking-widest">Demographics</th>
+                    <th className="p-6 text-[9px] font-black text-slate-400 uppercase tracking-widest">Clinical Status</th>
+                    <th className="p-6 text-[9px] font-black text-slate-400 uppercase tracking-widest">Medication</th>
+                    <th className="p-6 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filtered.length === 0 ? (
+                    <tr>
+                       <td colSpan={5} className="p-20 text-center">
+                          <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">No matching subjects found</p>
+                       </td>
+                    </tr>
+                  ) : (
+                    filtered.map((p) => (
+                      <tr key={p.id} className="hover:bg-slate-50/30 transition-all group">
+                        <td className="p-6">
+                           <div className="flex items-center gap-4">
+                              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black ${
+                                 p.status === 'critical' ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-400'
+                              }`}>
+                                 {p.name.charAt(0)}
+                              </div>
+                              <div>
+                                 <p className="font-bold text-slate-900 text-sm">{p.name}</p>
+                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">ID: {p.id.slice(0,8)}</p>
+                              </div>
+                           </div>
+                        </td>
+                        <td className="p-6">
+                           <p className="text-[10px] font-bold text-slate-700 uppercase">{p.age || "—"} YRS • {p.gender || "—"}</p>
+                           <div className="flex items-center gap-1.5 mt-1 text-slate-400">
+                              <MapPin className="w-3 h-3" />
+                              <span className="text-[9px] font-bold uppercase tracking-wider">{p.location || "N/A"}</span>
+                           </div>
+                        </td>
+                        <td className="p-6">
+                           <div className="flex">
+                              <RiskBadge 
+                                level={p.status === 'active' ? 'moderate' : p.status === 'critical' ? 'critical' : 'safe'} 
+                                size="sm" 
+                              />
+                           </div>
+                        </td>
+                        <td className="p-6">
+                           {p.medications.length > 0 ? (
+                              <div>
+                                 <p className="text-[10px] font-bold text-slate-700 uppercase">{p.medications[0].name}</p>
+                                 <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{p.medications[0].dose}</p>
+                              </div>
+                           ) : (
+                              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">None</span>
+                           )}
+                        </td>
+                        <td className="p-6 text-right">
+                           <Link 
+                             href={`/doctor/patients/${p.id}`} 
+                             className="inline-flex h-9 px-4 items-center justify-center rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:bg-slate-900 hover:text-white hover:border-slate-900 transition-all"
+                           >
+                             View Dossier
+                           </Link>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+           </div>
         </div>
-      ) : filtered.length === 0 ? (
-        <div
-          style={{
-            textAlign: "center",
-            padding: "4rem",
-            background: "var(--bg-surface)",
-            border: "1px solid var(--bg-border)",
-          }}
-        >
-          <p
-            style={{
-              fontFamily: "var(--font-display)",
-              color: "var(--text-muted)",
-              fontSize: "0.875rem",
-              letterSpacing: "0.08em",
-            }}
-          >
-            {patients.length === 0 ? "NO PATIENTS YET" : "NO RESULTS FOUND"}
-          </p>
-          {patients.length === 0 && (
-            <p
-              style={{
-                fontFamily: "var(--font-body)",
-                color: "var(--text-muted)",
-                fontSize: "0.8125rem",
-                marginTop: "0.5rem",
-              }}
-            >
-              Add your first patient to get started.
-            </p>
-          )}
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          {/* Header row */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "2fr 1fr 1fr 1.5fr 1fr 100px",
-              padding: "0.5rem 1rem",
-              fontFamily: "var(--font-display)",
-              fontSize: "0.5625rem",
-              color: "var(--text-muted)",
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              borderBottom: "1px solid var(--bg-border)",
-            }}
-          >
-            <span>Name</span>
-            <span>Age / Gender</span>
-            <span>Location</span>
-            <span>Current Medication</span>
-            <span>Status</span>
-            <span />
-          </div>
-          {filtered.map((patient) => (
-            <div
-              key={patient.id}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "2fr 1fr 1fr 1.5fr 1fr 100px",
-                padding: "0.875rem 1rem",
-                background: "var(--bg-surface)",
-                border: "1px solid var(--bg-border)",
-                alignItems: "center",
-                borderLeft:
-                  patient.status === "critical"
-                    ? "2px solid var(--risk-critical)"
-                    : "2px solid transparent",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    fontFamily: "var(--font-body)",
-                    fontSize: "0.9375rem",
-                    color: "var(--text-primary)",
-                    fontWeight: 500,
-                  }}
-                >
-                  {patient.name}
-                </div>
-                {patient.conditions.length > 0 && (
-                  <div
-                    style={{
-                      fontFamily: "var(--font-body)",
-                      fontSize: "0.75rem",
-                      color: "var(--text-muted)",
-                      marginTop: "0.125rem",
-                    }}
-                  >
-                    {patient.conditions.slice(0, 2).join(", ")}
-                  </div>
-                )}
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: "0.8125rem",
-                  color: "var(--text-secondary)",
-                }}
-              >
-                {patient.age ?? "—"} / {patient.gender ?? "—"}
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-body)",
-                  fontSize: "0.8125rem",
-                  color: "var(--text-secondary)",
-                }}
-              >
-                {patient.location ?? "—"}
-              </div>
-              <div>
-                {patient.medications.length > 0 ? (
-                  <div>
-                    <div
-                      style={{
-                        fontFamily: "var(--font-body)",
-                        fontSize: "0.8125rem",
-                        color: "var(--text-primary)",
-                      }}
-                    >
-                      {patient.medications[0].name}
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontSize: "0.6875rem",
-                        color: "var(--text-muted)",
-                      }}
-                    >
-                      {patient.medications[0].dose}
-                    </div>
-                  </div>
-                ) : (
-                  <span
-                    style={{
-                      fontFamily: "var(--font-body)",
-                      fontSize: "0.8125rem",
-                      color: "var(--text-muted)",
-                    }}
-                  >
-                    None
-                  </span>
-                )}
-              </div>
-              <div>
-                <RiskBadge
-                  level={
-                    patient.status === "active"
-                      ? "moderate"
-                      : patient.status === "critical"
-                        ? "critical"
-                        : "safe"
-                  }
-                  size="sm"
-                />
-              </div>
-              <div>
-                <Link
-                  href={`/doctor/patients/${patient.id}`}
-                  style={{
-                    display: "inline-block",
-                    padding: "0.3125rem 0.75rem",
-                    border: "1px solid var(--bg-border)",
-                    color: "var(--text-secondary)",
-                    fontFamily: "var(--font-display)",
-                    fontSize: "0.5625rem",
-                    letterSpacing: "0.08em",
-                    textDecoration: "none",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  VIEW →
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+
+      </div>
     </div>
   );
 }

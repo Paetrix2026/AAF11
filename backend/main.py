@@ -61,6 +61,19 @@ app.add_middleware(
     allow_credentials=True,
 )
 
+import traceback
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    print(f"CRITICAL ERROR: {exc}")
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"success": False, "message": f"Internal Server Error: {str(exc)}", "data": None}
+    )
+
 app.include_router(analysis.router, prefix="/api")
 app.include_router(stream.router, prefix="/api")
 app.include_router(status.router, prefix="/api")

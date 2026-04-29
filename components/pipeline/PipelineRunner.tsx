@@ -1,15 +1,18 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { runPipeline, streamPipeline, submitOutcome } from "@/lib/api";
+import { useState, useRef, useEffect } from "react";
+import { runPipeline, streamPipeline, submitOutcome, searchLocal, searchOnline } from "@/lib/api";
 import { AgentStepCard } from "./AgentStepCard";
 import { PipelineOutput } from "./PipelineOutput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Play, RotateCcw, CheckCircle2, AlertCircle, Loader2, Zap, Activity, Info, ChevronRight, Check } from "lucide-react";
+import { Play, RotateCcw, CheckCircle2, AlertCircle, Loader2, Zap, Activity, Info, ChevronRight, Check, Search, RefreshCw, ExternalLink, Database } from "lucide-react";
 import type { AgentStep, PipelineResult } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "sonner";
 
 interface PipelineRunnerProps {
   patientId: string;
@@ -41,16 +44,72 @@ export function PipelineRunner({ patientId }: PipelineRunnerProps) {
   const [outcomeNotes, setOutcomeNotes] = useState("");
   const [outcomeSubmitted, setOutcomeSubmitted] = useState(false);
   const [runId, setRunId] = useState<string | null>(null);
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
   const esRef = useRef<EventSource | null>(null);
 
-  const handleRun = async () => {
-    if (!pathogen.trim()) {
-      setError("Please specify target pathogen.");
+  const extractMutation = (text: string) => {
+    const match = text.match(/[A-Z]\d+[A-Z]/);
+    return match ? match[0] : "";
+  };
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    setPathogen(query);
+    
+    // Auto-extract mutation if found in query
+    const extracted = extractMutation(query);
+    if (extracted) setVariant(extracted);
+
+    if (query.length < 2) {
+      setSearchResults([]);
+      setShowSearchResults(false);
       return;
     }
+
+    setSearchLoading(true);
+    setShowSearchResults(true);
+    setSearchResults([]);
+
+    try {
+      // Local search
+      searchLocal(query).then(localData => {
+        setSearchResults(prev => {
+          const ids = new Set(prev.map(r => r.id));
+          return [...prev, ...localData.filter(r => !ids.has(r.id))];
+        });
+      });
+
+      // Online search
+      const onlineData = await searchOnline(query);
+      setSearchResults(prev => {
+        const ids = new Set(prev.map(r => r.id));
+        return [...prev, ...onlineData.filter(r => !ids.has(r.id))];
+      });
+    } catch (err) {
+      console.error("Search failed", err);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleRun = async () => {
+    if (running) return; // Prevent double trigger
+    
+    if (!pathogen.trim()) {
+      setError("Please specify target pathogen.");
+      toast.error("Biological Target required");
+      return;
+    }
+    
+    console.log(`[PIPELINE] Initializing run for Pathogen: ${pathogen}, Variant: ${variant}`);
     setError("");
     setRunning(true);
-    setSteps([]);
     setResult(null);
     setOutcome("");
     setOutcomeSubmitted(false);
@@ -71,17 +130,35 @@ export function PipelineRunner({ patientId }: PipelineRunnerProps) {
           ? symptoms.split(",").map((s) => s.trim()).filter(Boolean)
           : undefined,
       });
+      
+      if (!res?.runId) {
+        throw new Error("No Run ID returned from compute node");
+      }
+      
+      console.log(`[PIPELINE] Run ID established: ${res.runId}`);
       setRunId(res.runId);
 
       esRef.current = streamPipeline(res.runId, (rawData) => {
         try {
           const update = JSON.parse(rawData);
+          console.log(`[SSE] Telemetry Update:`, update);
+          
           if (update.done && update.result) {
             setResult(update.result);
             setRunning(false);
             esRef.current?.close();
+            toast.success("Clinical Sequence Complete");
             return;
           }
+          
+          if (update.error) {
+            setError(update.error);
+            setRunning(false);
+            esRef.current?.close();
+            toast.error(`Sequence Error: ${update.error}`);
+            return;
+          }
+
           if (update.agent) {
             setSteps((prev) =>
               prev.map((s) =>
@@ -95,16 +172,22 @@ export function PipelineRunner({ patientId }: PipelineRunnerProps) {
               )
             );
           }
-        } catch {}
+        } catch (e) {
+          console.warn("[SSE] Failed to parse message", e);
+        }
       });
 
-      esRef.current.onerror = () => {
+      esRef.current.onerror = (e) => {
+        console.error("[SSE] Connection lost", e);
         setRunning(false);
         esRef.current?.close();
+        toast.error("Telemetry connection lost");
       };
     } catch (err) {
+      console.error("[PIPELINE] Run error:", err);
       setError(err instanceof Error ? err.message : "Deployment failure");
       setRunning(false);
+      toast.error(err instanceof Error ? err.message : "Pipeline initialization failed");
     }
   };
 
@@ -122,14 +205,104 @@ export function PipelineRunner({ patientId }: PipelineRunnerProps) {
       {!running && !result && (
         <div className="p-12 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="grid md:grid-cols-2 gap-10">
-            <div className="space-y-4">
-              <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Biological Target</Label>
-              <Input
-                value={pathogen}
-                onChange={(e) => setPathogen(e.target.value)}
-                placeholder="e.g. H5N1, COVID-19..."
-                className="h-16 bg-slate-50 border-none rounded-2xl font-bold text-lg px-6 focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:bg-white transition-all shadow-sm"
-              />
+            <div className="space-y-4 relative">
+              <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Biological Target Identifier</Label>
+              <div className="relative group">
+                <Input
+                  value={pathogen}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  placeholder="SEARCH PATHOGEN OR GENE..."
+                  className="h-16 bg-slate-50 border-none rounded-2xl font-bold text-lg px-6 focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:bg-white transition-all shadow-sm"
+                />
+                {searchLoading && (
+                   <RefreshCw className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500 animate-spin" />
+                )}
+              </div>
+
+              {/* Search Results Dropdown */}
+              <AnimatePresence>
+                {showSearchResults && (pathogen.length >= 2 || searchResults.length > 0) && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-[2rem] overflow-hidden z-[100] shadow-2xl"
+                  >
+                    <div className="grid grid-cols-2 divide-x divide-slate-100 h-[320px]">
+                      {/* Left: Local */}
+                      <div className="flex flex-col min-w-0">
+                        <div className="p-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Local Vault</span>
+                        </div>
+                        <ScrollArea className="flex-1">
+                          <div className="p-2 space-y-1">
+                            {searchResults.filter(r => r.source === 'local').length === 0 ? (
+                              <div className="py-12 text-center opacity-30 text-[9px] font-bold uppercase tracking-widest">
+                                {searchLoading ? "Scanning Vault..." : "No Local Data"}
+                              </div>
+                            ) : (
+                              searchResults.filter(r => r.source === 'local').map((res, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => {
+                                    setPathogen(res.name);
+                                    setSearchQuery(res.name);
+                                    setShowSearchResults(false);
+                                    const ext = extractMutation(res.name) || extractMutation(res.description || "");
+                                    if (ext) setVariant(ext);
+                                    toast.success(`Target Locked: ${res.name}`);
+                                  }}
+                                  className="w-full p-3 rounded-xl hover:bg-slate-50 transition-all text-left group"
+                                >
+                                  <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider truncate">{res.name}</div>
+                                  <div className="text-[8px] text-slate-400 font-medium uppercase truncate mt-1">{res.description}</div>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        </ScrollArea>
+                      </div>
+
+                      {/* Right: Online */}
+                      <div className="flex flex-col min-w-0">
+                        <div className="p-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Global Repo</span>
+                        </div>
+                        <ScrollArea className="flex-1">
+                          <div className="p-2 space-y-1">
+                            {searchResults.filter(r => r.source === 'online').length === 0 ? (
+                              <div className="py-12 text-center opacity-30 text-[9px] font-bold uppercase tracking-widest">
+                                {searchLoading ? "UniProt Consulting..." : "No Global Results"}
+                              </div>
+                            ) : (
+                              searchResults.filter(r => r.source === 'online').map((res, idx) => (
+                                <button
+                                  key={idx}
+                                  onClick={() => {
+                                    setPathogen(res.id);
+                                    setSearchQuery(res.name);
+                                    setShowSearchResults(false);
+                                    const ext = extractMutation(res.name) || extractMutation(res.description || "");
+                                    if (ext) setVariant(ext);
+                                    toast.success(`Online Target Locked: ${res.name}`);
+                                  }}
+                                  className="w-full p-3 rounded-xl hover:bg-slate-50 transition-all text-left group"
+                                >
+                                  <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider truncate">{res.name}</div>
+                                  <div className="text-[8px] text-slate-400 font-medium uppercase truncate mt-1">{res.description}</div>
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    </div>
+                    <div className="p-2 bg-slate-50 border-t border-slate-100 text-center">
+                      <button onClick={() => setShowSearchResults(false)} className="text-[8px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest">Close Discovery Matrix</button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
             <div className="space-y-4">
               <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Mutation Signature</Label>
@@ -160,11 +333,17 @@ export function PipelineRunner({ patientId }: PipelineRunnerProps) {
           )}
 
           <Button
+            type="button"
             onClick={handleRun}
-            className="w-full h-20 bg-emerald-500 text-white rounded-3xl font-bold text-lg shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 hover:shadow-emerald-600/30 transition-all active:scale-[0.98]"
+            disabled={running || !pathogen.trim()}
+            className="w-full h-20 bg-emerald-500 text-white rounded-3xl font-bold text-lg shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 hover:shadow-emerald-600/30 transition-all active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
           >
-            <Zap className="w-5 h-5 mr-3 fill-current" />
-            Establish Neural Run
+            {running ? (
+              <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+            ) : (
+              <Zap className="w-5 h-5 mr-3 fill-current" />
+            )}
+            {running ? "Sequence Initializing..." : "Establish Neural Run"}
           </Button>
         </div>
       )}

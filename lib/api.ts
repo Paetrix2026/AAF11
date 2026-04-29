@@ -9,7 +9,7 @@ import type {
   User,
 } from "@/types";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BASE_URL = ""; // Using Next.js rewrites to proxy to 127.0.0.1:8000
 
 function getCookie(name: string): string | null {
   if (typeof document === "undefined") return null;
@@ -21,7 +21,9 @@ function getCookie(name: string): string | null {
 
 async function apiCall<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const token = getCookie("token");
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
+  const fullUrl = `${BASE_URL}${endpoint}`;
+  console.log(`[API Call] Fetching: ${fullUrl}`);
+  const response = await fetch(fullUrl, {
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -98,3 +100,12 @@ export const getPipelineRuns = (patientId?: string) =>
   );
 export const getScreeningCompounds = () =>
   apiCall<any[]>("/api/screening-compounds");
+
+export const searchPathogens = (query: string) =>
+  apiCall<any[]>(`/api/search?q=${query}`);
+
+export const searchLocal = (query: string) =>
+  apiCall<any[]>(`/api/search/local?q=${query}`);
+
+export const searchOnline = (query: string) =>
+  apiCall<any[]>(`/api/search/online?q=${query}`);

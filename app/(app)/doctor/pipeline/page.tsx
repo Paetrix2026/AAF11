@@ -21,7 +21,7 @@ export default function PipelinePage() {
     getPatients().then(setPatients).finally(() => setLoading(false));
   }, []);
 
-  const filteredPatients = patients.filter(p => 
+  const filteredPatients = search.trim() === "" ? [] : patients.filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase()) || 
     p.id.toLowerCase().includes(search.toLowerCase())
   );
@@ -68,7 +68,7 @@ export default function PipelinePage() {
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="md:col-span-8 bg-white rounded-[2.5rem] p-10 shadow-xl shadow-slate-200/50 flex flex-col justify-between relative overflow-hidden group"
+              className="md:col-span-8 bg-white/50 backdrop-blur-xl border border-slate-200/50 rounded-[2.5rem] p-10 flex flex-col justify-between relative overflow-hidden group"
             >
               <div className="relative z-10">
                 <div className="flex items-center gap-3 mb-8">
@@ -101,7 +101,7 @@ export default function PipelinePage() {
                       {patientId && (
                         <button 
                           onClick={() => { setPatientId(""); setSearch(""); }}
-                          className="absolute right-6 top-1/2 -translate-y-1/2 w-10 h-10 bg-white shadow-sm rounded-xl flex items-center justify-center hover:bg-slate-50 transition-all text-slate-400"
+                          className="absolute right-6 top-1/2 -translate-y-1/2 w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center hover:bg-slate-50 transition-all text-slate-400"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -118,7 +118,7 @@ export default function PipelinePage() {
                 <Button 
                   onClick={() => patientId.trim() && setStarted(true)} 
                   disabled={!patientId.trim()}
-                  className="h-16 px-10 bg-emerald-500 text-white rounded-[1.25rem] font-bold text-sm shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 hover:shadow-emerald-600/30 transition-all disabled:opacity-50 disabled:shadow-none"
+                  className="h-16 px-10 bg-emerald-500 text-white rounded-[1.25rem] font-bold text-sm hover:bg-emerald-600 transition-all disabled:opacity-50"
                 >
                   <Play className="w-4 h-4 mr-2 fill-current" />
                   Deploy Pipeline
@@ -131,7 +131,7 @@ export default function PipelinePage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.1 }}
-              className="md:col-span-4 bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 overflow-hidden flex flex-col"
+              className="md:col-span-4 bg-white/50 backdrop-blur-xl border border-slate-200/50 rounded-[2.5rem] overflow-hidden flex flex-col"
             >
               <div className="p-8 border-b border-slate-50 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -145,47 +145,58 @@ export default function PipelinePage() {
                 </span>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
-                {loading ? (
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="h-20 bg-slate-50 rounded-2xl animate-pulse" />
-                  ))
-                ) : filteredPatients.length > 0 ? (
-                  filteredPatients.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => {
-                        setPatientId(p.id);
-                        setSearch(p.name);
-                      }}
-                      className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group/item ${
-                        patientId === p.id 
-                          ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" 
-                          : "hover:bg-slate-50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                          patientId === p.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400 group-hover/item:bg-white"
-                        }`}>
-                          <User className="w-4 h-4" />
-                        </div>
-                        <div className="text-left">
-                          <h4 className="font-bold text-xs">{p.name}</h4>
-                          <p className={`text-[10px] font-medium opacity-60 ${patientId === p.id ? "text-white" : "text-slate-400"}`}>
-                            ID: {p.id.slice(0, 12)}...
-                          </p>
-                        </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                {loading || !search ? (
+                  <div className="space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="h-[72px] bg-slate-50/50 rounded-2xl border border-slate-100/30 border-dashed" />
+                    ))}
+                    {!loading && (
+                      <div className="pt-4 text-center">
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Awaiting Identifier Input</p>
                       </div>
-                      <ChevronRight className={`w-4 h-4 opacity-0 group-hover/item:opacity-100 transition-all ${patientId === p.id ? "text-white" : "text-slate-300"}`} />
-                    </button>
-                  ))
+                    )}
+                  </div>
+                ) : filteredPatients.length > 0 ? (
+                  <AnimatePresence>
+                    {filteredPatients.map((p) => (
+                      <motion.button
+                        key={p.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        onClick={() => {
+                          setPatientId(p.id);
+                          setSearch(p.name);
+                        }}
+                        className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group/item ${
+                          patientId === p.id 
+                            ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" 
+                            : "hover:bg-slate-50 border border-transparent hover:border-slate-100"
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                            patientId === p.id ? "bg-white/20 text-white" : "bg-slate-100 text-slate-400 group-hover/item:bg-white"
+                          }`}>
+                            <User className="w-4 h-4" />
+                          </div>
+                          <div className="text-left">
+                            <h4 className="font-bold text-xs">{p.name}</h4>
+                            <p className={`text-[10px] font-medium opacity-60 ${patientId === p.id ? "text-white" : "text-slate-400"}`}>
+                              ID: {p.id.slice(0, 12)}...
+                            </p>
+                          </div>
+                        </div>
+                        <ChevronRight className={`w-4 h-4 opacity-0 group-hover/item:opacity-100 transition-all ${patientId === p.id ? "text-white" : "text-slate-300"}`} />
+                      </motion.button>
+                    ))}
+                  </AnimatePresence>
                 ) : (
                   <div className="py-20 text-center space-y-4">
-                    <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300">
+                    <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-200">
                       <Search className="w-6 h-6" />
                     </div>
-                    <p className="text-xs font-bold text-slate-300 uppercase tracking-widest px-4">No registry matches found</p>
+                    <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest px-4">Zero Matches Found</p>
                   </div>
                 )}
               </div>
@@ -196,7 +207,7 @@ export default function PipelinePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="md:col-span-4 bg-emerald-600 rounded-[2.5rem] p-8 text-white shadow-xl shadow-emerald-600/20 flex flex-col justify-between"
+              className="md:col-span-4 bg-emerald-600 rounded-[2.5rem] p-8 text-white flex flex-col justify-between"
             >
               <div className="flex items-center justify-between">
                 <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
@@ -220,7 +231,7 @@ export default function PipelinePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="md:col-span-4 bg-white rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/50 flex flex-col justify-between"
+              className="md:col-span-4 bg-white/50 backdrop-blur-xl border border-slate-200/50 rounded-[2.5rem] p-8 flex flex-col justify-between"
             >
               <div className="flex items-center justify-between">
                 <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
@@ -242,7 +253,7 @@ export default function PipelinePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
-              className="md:col-span-4 bg-white rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/50 flex flex-col justify-between"
+              className="md:col-span-4 bg-white/50 backdrop-blur-xl border border-slate-200/50 rounded-[2.5rem] p-8 flex flex-col justify-between"
             >
               <div className="flex items-center justify-between">
                 <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
@@ -263,14 +274,14 @@ export default function PipelinePage() {
               animate={{ opacity: 1, scale: 1 }}
               className="w-full"
             >
-              <div className="bg-white rounded-[3rem] shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-50">
+              <div className="bg-white rounded-[3rem] overflow-hidden border border-slate-200/50">
                 <div className="bg-slate-900 text-white p-10 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
                   
                   <div className="relative z-10 flex items-center gap-8">
                     <div className="relative">
                       <div className="absolute inset-0 bg-emerald-500/20 rounded-3xl blur-xl animate-pulse" />
-                      <div className="relative w-20 h-20 bg-emerald-500 rounded-[2rem] flex items-center justify-center shadow-lg shadow-emerald-500/40">
+                      <div className="relative w-20 h-20 bg-emerald-500 rounded-[2rem] flex items-center justify-center">
                          <Activity className="w-8 h-8 text-white" />
                       </div>
                     </div>

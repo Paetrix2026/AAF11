@@ -112,6 +112,11 @@ htmlcov/
 *.rar
 *.7z
 
+# ── Local Dataset Storage (Large Files) ───────────────────
+# Prevent 1.7GB+ TSV and DB files from being pushed
+backend/data/
+public/data/
+
 # NOTE: setup.ps1, setup.sh, backend/setup.bat are intentionally
 # tracked — teammates need them to bootstrap their environment.
 Reference/
