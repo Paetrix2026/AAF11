@@ -39,6 +39,7 @@ httpx==0.28.1
 numpy>=1.22.4,<2.0
 pandas==2.2.0
 scikit-learn==1.5.0
+gdown==5.2.0
 pillow>=10.3.0
 reportlab==4.2.5
 

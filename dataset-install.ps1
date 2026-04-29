@@ -3,9 +3,7 @@
 
 $DATA_DIR = "backend/data/cosmic"
 $TSV_PATH = "$DATA_DIR/cmc_export.tsv"
-# PLACEHOLDER: Replace with the actual S3/Drive link provided in the group chat
 # GOOGLE DRIVE ID: 1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd (1.7GB COSMIC TSV)
-$DOWNLOAD_URL = "https://drive.google.com/uc?id=1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd&export=download" 
 
 Write-Host "--- HEALYNX DATASET PROVISIONER ---" -ForegroundColor Cyan
 
@@ -17,16 +15,17 @@ if (!(Test-Path $DATA_DIR)) {
 
 # 2. Check for existing dataset
 if (!(Test-Path $TSV_PATH)) {
-    Write-Host "[+] Downloading 1.7GB dataset. This will take significant time..." -ForegroundColor Yellow
+    Write-Host "[+] Downloading 1.7GB dataset via gdown. This will take significant time..." -ForegroundColor Yellow
     try {
-        Invoke-WebRequest -Uri $DOWNLOAD_URL -OutFile $TSV_PATH
+        # Use gdown via uv to handle Google Drive virus scan prompts
+        cd backend
+        uv run gdown "1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd" -o "data/cosmic/cmc_export.tsv"
+        cd ..
         Write-Host "[+] Download complete." -ForegroundColor Green
     } catch {
         Write-Host "[!] Download failed: $_" -ForegroundColor Red
         exit 1
     }
-} else {
-    Write-Host "[*] Dataset TSV already exists. Skipping download." -ForegroundColor Gray
 }
 
 # 3. Build Index
