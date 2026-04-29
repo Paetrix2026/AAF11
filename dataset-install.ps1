@@ -13,50 +13,64 @@ if (!(Test-Path $DATA_DIR)) {
     New-Item -ItemType Directory -Path $DATA_DIR -Force | Out-Null
 }
 
-# 2. Check for existing dataset and validate size
-if (Test-Path $TSV_PATH) {
-    $fileSize = (Get-Item $TSV_PATH).Length
-    if ($fileSize -lt 100MB) {
-        Write-Host "[!] Detected corrupted or incomplete dataset file ($($fileSize / 1KB) KB). Cleaning up..." -ForegroundColor Yellow
-        Remove-Item $TSV_PATH -Force
-    }
-}
+# 3. Download and Validation Loop
+$attempts = 0
+$maxAttempts = 3
+$success = $false
 
-if (!(Test-Path $TSV_PATH)) {
-    Write-Host "[+] Downloading 1.7GB dataset via gdown. This will take significant time..." -ForegroundColor Yellow
+while (!$success -and $attempts -lt $maxAttempts) {
+    $attempts++
+    
+    # Validation check for existing file
+    if (Test-Path $TSV_PATH) {
+        $fileSize = (Get-Item $TSV_PATH).Length
+        $firstLine = Get-Content $TSV_PATH -TotalCount 1
+        
+        if ($fileSize -gt 100MB -and $firstLine -notmatch "<!DOCTYPE html>") {
+            $success = $true
+            Write-Host "[*] Verified dataset found ($($fileSize / 1GB) GB). Skipping download." -ForegroundColor Green
+            continue
+        } else {
+            Write-Host "[!] Found invalid/corrupted file. Purging and retrying..." -ForegroundColor Yellow
+            Remove-Item $TSV_PATH -Force
+        }
+    }
+
+    Write-Host "[+] Attempt $attempts of $maxAttempts: Downloading 1.7GB dataset..." -ForegroundColor Cyan
     try {
         cd backend
-        # Ensure gdown is installed first
-        uv pip install gdown
-        # Download using the direct ID which gdown handles correctly for large files
-        uv run gdown "1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd" -o "data/cosmic/cmc_export.tsv" --fuzzy
+        Write-Host "    [Step 1] Synchronizing download tools..." -ForegroundColor Gray
+        uv pip install gdown --quiet
+        
+        Write-Host "    [Step 2] Establishing secure stream to Google Drive..." -ForegroundColor Gray
+        # Use gdown with specific large-file bypass flags
+        uv run gdown "1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd" -o "data/cosmic/cmc_export.tsv" --fuzzy --confirm
         cd ..
         
-        # Verify the file is NOT an HTML error page
-        $firstLine = Get-Content $TSV_PATH -TotalCount 1
-        if ($firstLine -match "<!DOCTYPE html>" -or $firstLine -match "<html>") {
-            Write-Host "[!] CRITICAL ERROR: Google Drive returned an HTML error page instead of the dataset." -ForegroundColor Red
-            Write-Host "[+] Attempting forced bypass..." -ForegroundColor Yellow
-            Remove-Item $TSV_PATH -Force
-            cd backend
-            uv run gdown "1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd" -o "data/cosmic/cmc_export.tsv" --confirm
-            cd ..
+        # Immediate validation
+        if (Test-Path $TSV_PATH) {
+            $firstLine = Get-Content $TSV_PATH -TotalCount 1
+            if ($firstLine -match "<!DOCTYPE html>") {
+                Write-Host "[!] ERROR: Bypass failed. Google Drive blocked the connection." -ForegroundColor Red
+            } else {
+                $success = $true
+                Write-Host "[SUCCESS] Download verified." -ForegroundColor Green
+            }
         }
-
-        if (!(Test-Path $TSV_PATH)) {
-            Write-Host "[!] ERROR: Download failed to produce a file." -ForegroundColor Red
-            exit 1
-        }
-        Write-Host "[+] Download complete and verified." -ForegroundColor Green
     } catch {
-        Write-Host "[!] Download failed: $_" -ForegroundColor Red
-        exit 1
+        Write-Host "[!] System Error during download: $_" -ForegroundColor Red
+        cd $PSScriptRoot # Ensure we reset path even on fail
     }
-} else {
-    Write-Host "[*] Valid dataset found. Skipping download." -ForegroundColor Gray
 }
 
-# 3. Build Index
+if (!$success) {
+    Write-Host "`n[FATAL] Could not establish a clean download after $maxAttempts attempts." -ForegroundColor Red
+    Write-Host "Please check your internet connection or manually download from:"
+    Write-Host "https://drive.google.com/uc?id=1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd&export=download"
+    exit 1
+}
+
+# 4. Build Index
 Write-Host "[+] Initializing Local Neural Index (SQLITE)..." -ForegroundColor Yellow
 Write-Host "    This processes 1.7GB of genomics data. Please wait." -ForegroundColor Gray
 
