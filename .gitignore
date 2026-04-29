@@ -1,0 +1,116 @@
+# ── Secrets — NEVER commit ────────────────────────────────
+.env
+.env.local
+.env.*.local
+backend/.env
+
+# ── Prompt / internal docs ────────────────────────────────
+prompt.md
+
+# ── Node.js ───────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# ── Next.js build output ──────────────────────────────────
+.next/
+out/
+build/
+dist/
+
+# ── TypeScript ────────────────────────────────────────────
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# ── Python — all venv variants ────────────────────────────
+# (always recreated by setup.ps1 / setup.sh)
+.venv/
+venv/
+env/
+ENV/
+backend/.venv/
+backend/venv/
+backend.venv/
+
+# Python compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyo
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+*.egg-info/
+.eggs/
+dist/
+*.egg
+
+# ── Precomputed / large binary data ───────────────────────
+# PDB structure files can be tens of MB — fetch at runtime
+public/precomputed/*.pdb
+public/precomputed/*.pdbqt
+*.pdb
+*.pdbqt
+*.mol2
+*.sdf
+
+# ── Database files ────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Logs ─────────────────────────────────────────────────
+*.log
+logs/
+*.out
+
+# ── OS generated ──────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ── Windows junk ──────────────────────────────────────────
+nul
+
+# ── IDE ───────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+
+# ── Drizzle migrations (auto-generated) ──────────────────
+db/migrations/
+
+# ── Coverage / test output ────────────────────────────────
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# ── Misc large / generated ────────────────────────────────
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# NOTE: setup.ps1, setup.sh, backend/setup.bat are intentionally
+# tracked — teammates need them to bootstrap their environment.

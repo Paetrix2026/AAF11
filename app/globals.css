@@ -1,0 +1,91 @@
+@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600&display=swap");
+
+:root {
+    --bg-base: #0a0b0d;
+    --bg-surface: #111318;
+    --bg-elevated: #181c24;
+    --bg-border: #1e2330;
+    --accent-primary: #00e5c3;
+    --accent-secondary: #00b4d8;
+    --accent-glow: rgba(0, 229, 195, 0.15);
+    --risk-critical: #ff4444;
+    --risk-high: #ff8c00;
+    --risk-moderate: #ffd600;
+    --risk-low: #00e5c3;
+    --risk-safe: #4ade80;
+    --text-primary: #e8eaf0;
+    --text-secondary: #8892a4;
+    --text-muted: #4a5568;
+    --text-accent: #00e5c3;
+    --agent-surveillance: #7c3aed;
+    --agent-discovery: #0ea5e9;
+    --agent-resistance: #f59e0b;
+    --agent-memory: #10b981;
+    --agent-nextstep: #00e5c3;
+    --agent-alert: #ef4444;
+    --font-display: "Space Mono", monospace;
+    --font-body: "DM Sans", sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html,
+body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    min-height: 100vh;
+}
+
+/* Noise texture overlay */
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.03;
+}
+
+@keyframes agentPulse {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 var(--accent-glow);
+    }
+    50% {
+        box-shadow: 0 0 0 8px transparent;
+    }
+}
+
+.agent-active {
+    animation: agentPulse 1.5s ease-in-out infinite;
+}
+
+.font-display {
+    font-family: var(--font-display);
+}
+
+.font-body {
+    font-family: var(--font-body);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 4px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-base);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--bg-border);
+    border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}

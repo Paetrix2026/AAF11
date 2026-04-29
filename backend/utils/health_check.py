@@ -1,0 +1,20 @@
+import shutil
+
+
+def print_health_report() -> None:
+    print("\n=== Healynx Backend Health Check ===")
+
+    binaries = {
+        "obabel": "Open Babel (SMILES/PDB conversion)",
+        "vina": "AutoDock Vina (molecular docking)",
+        "mafft": "MAFFT (sequence alignment)",
+    }
+
+    for binary, description in binaries.items():
+        path = shutil.which(binary)
+        if path:
+            print(f"  ✓ {description}: {path}")
+        else:
+            print(f"  ✗ {description}: NOT FOUND (optional for demo)")
+
+    print("===================================\n")

@@ -1,0 +1,17 @@
+{
+  "H5N1": {
+    "recommended_drugs": ["Oseltamivir", "Baloxavir"],
+    "typical_resistance_mutations": ["H275Y", "I38T"],
+    "severity": "high"
+  },
+  "H1N1": {
+    "recommended_drugs": ["Oseltamivir", "Zanamivir"],
+    "typical_resistance_mutations": ["H275Y"],
+    "severity": "moderate"
+  },
+  "SARS-CoV-2": {
+    "recommended_drugs": ["Remdesivir"],
+    "typical_resistance_mutations": ["S50L"],
+    "severity": "high"
+  }
+}

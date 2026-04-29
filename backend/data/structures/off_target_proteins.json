@@ -1,0 +1,11 @@
+{
+  "Oseltamivir": {},
+  "Baloxavir": {
+    "integrase": 0.2
+  },
+  "Zanamivir": {},
+  "Remdesivir": {
+    "host_polymerase": 0.15,
+    "mitochondrial_polymerase": 0.1
+  }
+}
