@@ -1,8 +1,8 @@
 # Healynx Dataset Installation Script
 # This script handles the download and indexing of the 1.7GB COSMIC dataset.
 
-$DATA_DIR = "$PSScriptRoot/backend/data/cosmic"
-$TSV_PATH = "$DATA_DIR/cmc_export.tsv"
+$DATA_DIR = "$PSScriptRoot\backend\data\cosmic"
+$TSV_PATH = "$DATA_DIR\cmc_export.tsv"
 # GOOGLE DRIVE ID: 1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd (1.7GB COSMIC TSV)
 
 Write-Host "--- HEALYNX DATASET PROVISIONER ---" -ForegroundColor Cyan
@@ -38,7 +38,7 @@ while (!$success -and $attempts -lt $maxAttempts) {
 
     Write-Host "[+] Attempt $($attempts) of $($maxAttempts): Downloading 1.7GB dataset..." -ForegroundColor Cyan
     try {
-        Set-Location "$PSScriptRoot/backend"
+        Set-Location "$PSScriptRoot\backend"
         Write-Host "    [Step 1] Synchronizing download tools..." -ForegroundColor Gray
         uv pip install gdown --quiet
         
