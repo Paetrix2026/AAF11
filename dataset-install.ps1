@@ -1,6 +1,7 @@
 # Healynx Dataset Installation Script
 # This script handles the download and indexing of the 1.7GB COSMIC dataset.
 
+# CRITICAL: Use backslashes for native Windows paths to avoid Python argument parsing issues.
 $DATA_DIR = "$PSScriptRoot\backend\data\cosmic"
 $TSV_PATH = "$DATA_DIR\cmc_export.tsv"
 # GOOGLE DRIVE ID: 1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd (1.7GB COSMIC TSV)
@@ -43,7 +44,8 @@ while (!$success -and $attempts -lt $maxAttempts) {
         uv pip install gdown --quiet
         
         Write-Host "    [Step 2] Establishing secure stream to Google Drive..." -ForegroundColor Gray
-        # FIXED: gdown uses -O (uppercase) for output. Removed unrecognized flags.
+        # CRITICAL: gdown on Windows REQUIRES uppercase -O for output. 
+        # Lowercase -o or flags like --fuzzy/--confirm are UNRECOGNIZED by your friend's gdown version.
         uv run gdown "1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd" -O "$TSV_PATH"
         Set-Location "$PSScriptRoot"
         
