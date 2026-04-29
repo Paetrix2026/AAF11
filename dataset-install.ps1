@@ -44,9 +44,8 @@ while (!$success -and $attempts -lt $maxAttempts) {
         uv pip install gdown --quiet
         
         Write-Host "    [Step 2] Establishing secure stream to Google Drive..." -ForegroundColor Gray
-        # CRITICAL: gdown on Windows REQUIRES uppercase -O for output. 
-        # Lowercase -o or flags like --fuzzy/--confirm are UNRECOGNIZED by your friend's gdown version.
-        uv run gdown "1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd" -O "$TSV_PATH"
+        # MOVING FLAG BEFORE ID: Some versions of gdown are picky about order.
+        uv run gdown -O "$TSV_PATH" "https://drive.google.com/uc?id=1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd"
         Set-Location "$PSScriptRoot"
         
         # Immediate validation
