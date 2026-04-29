@@ -1,33 +1,26 @@
+import { AlertCircle, Clock, Bell, CheckCircle2 } from "lucide-react";
+
 interface UrgencyIndicatorProps {
   urgency: "immediate" | "24_hours" | "48_hours" | "monitor";
 }
 
 const URGENCY_CONFIG = {
-  immediate: { label: "Immediate Action Required", color: "var(--risk-critical)", icon: "🚨" },
-  "24_hours": { label: "Act Within 24 Hours", color: "var(--risk-high)", icon: "⚠️" },
-  "48_hours": { label: "Act Within 48 Hours", color: "var(--risk-moderate)", icon: "🔔" },
-  monitor: { label: "Monitor — No Immediate Action", color: "var(--risk-safe)", icon: "✓" },
+  immediate: { label: "Immediate", color: "text-red-600", bg: "bg-red-50", border: "border-red-100", icon: AlertCircle },
+  "24_hours": { label: "24 Hours", color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-100", icon: Clock },
+  "48_hours": { label: "48 Hours", color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100", icon: Bell },
+  monitor: { label: "Monitor", color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", icon: CheckCircle2 },
 };
 
 export function UrgencyIndicator({ urgency }: UrgencyIndicatorProps) {
   const config = URGENCY_CONFIG[urgency];
   if (!config) return null;
+  const Icon = config.icon;
+  
   return (
     <div
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: "0.5rem",
-        padding: "0.375rem 0.75rem",
-        background: `${config.color}10`,
-        border: `1px solid ${config.color}30`,
-        borderLeft: `3px solid ${config.color}`,
-        color: config.color,
-        fontFamily: "var(--font-body)",
-        fontSize: "0.875rem",
-      }}
+      className={`inline-flex items-center gap-2 px-3 py-1.5 ${config.bg} border ${config.border} ${config.color} font-bold text-[10px] uppercase tracking-wider rounded-xl shadow-sm shadow-black/5`}
     >
-      <span>{config.icon}</span>
+      <Icon className="w-3.5 h-3.5" />
       <span>{config.label}</span>
     </div>
   );

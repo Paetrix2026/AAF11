@@ -12,7 +12,9 @@ import {
   Activity,
   Plus,
   Users,
-  Microscope
+  Microscope,
+  ShieldCheck,
+  ChevronRight
 } from "lucide-react";
 import { getPatients } from "@/lib/api";
 import { getUserFromCookie, clearAuthCookie } from "@/lib/auth";
@@ -53,34 +55,34 @@ export function DoctorSidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-[280px] bg-background border-r flex flex-col z-[100] hidden lg:flex shadow-sm">
+    <aside className="fixed left-0 top-0 bottom-0 w-[280px] bg-[#f8fafc] flex flex-col z-[100] hidden lg:flex">
       {/* Brand Header */}
-      <div className="p-6 border-b">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-primary/10 rounded-lg text-primary">
-            <Activity className="w-5 h-5" />
+      <div className="p-8">
+        <div className="flex items-center gap-3 mb-10">
+          <div className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <ShieldCheck className="w-6 h-6" />
           </div>
-          <span className="text-xl font-bold tracking-tight">Healynx</span>
+          <span className="text-xl font-bold tracking-tight text-slate-900">Healynx</span>
         </div>
 
         {/* Doctor Identity */}
         {user && (
-          <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/50 hover:bg-muted transition-colors">
-            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold shrink-0">
+          <div className="flex items-center gap-3 p-4 rounded-2xl bg-white shadow-sm border border-slate-100/50 hover:shadow-md transition-all group">
+            <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-900 flex items-center justify-center font-bold shrink-0 border border-slate-100 group-hover:bg-emerald-500 group-hover:text-white group-hover:border-emerald-500 transition-all">
               {user.name.split(' ').map(n => n[0]).join('')}
             </div>
             <div className="overflow-hidden">
-              <div className="text-sm font-semibold truncate">{user.name}</div>
-              <div className="text-xs text-muted-foreground truncate">Clinical Lead</div>
+              <div className="text-xs font-bold text-slate-900 truncate uppercase tracking-wider">{user.name}</div>
+              <div className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Clinical Lead</div>
             </div>
           </div>
         )}
       </div>
 
       {/* Main Navigation */}
-      <nav className="p-4 space-y-1">
-        <div className="px-3 mb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Primary Systems
+      <nav className="px-4 space-y-1 mt-2">
+        <div className="px-4 mb-4 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+          Core Systems
         </div>
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
@@ -89,41 +91,46 @@ export function DoctorSidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex items-center justify-between px-4 py-3.5 rounded-2xl text-xs font-bold transition-all group ${
                 isActive 
-                  ? "bg-secondary text-secondary-foreground" 
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10" 
+                  : "text-slate-500 hover:text-slate-900 hover:bg-white hover:shadow-sm"
               }`}
             >
-              <Icon className="w-4 h-4 shrink-0" />
-              {item.label}
+              <div className="flex items-center gap-3">
+                <Icon className={`w-4 h-4 shrink-0 ${isActive ? "text-emerald-400" : "group-hover:text-emerald-500"}`} />
+                <span className="uppercase tracking-wider">{item.label}</span>
+              </div>
+              {isActive && <ChevronRight className="w-3 h-3 text-emerald-400" />}
             </Link>
           );
         })}
       </nav>
 
       {/* Patient Directory */}
-      <div className="flex-1 flex flex-col min-h-0 border-t">
-        <div className="px-6 py-4 flex items-center justify-between text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          <span className="flex items-center gap-2"><Users className="w-4 h-4" /> Patients</span>
-          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground">
-            <Plus className="w-4 h-4" />
-          </Button>
+      <div className="flex-1 flex flex-col min-h-0 mt-8">
+        <div className="px-8 py-4 flex items-center justify-between">
+          <span className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+            <Users className="w-3 h-3" /> Registry
+          </span>
+          <button className="w-6 h-6 bg-white rounded-lg flex items-center justify-center text-slate-400 hover:text-emerald-500 hover:shadow-sm transition-all shadow-none">
+            <Plus className="w-3 h-3" />
+          </button>
         </div>
         
-        <div className="px-4 mb-4">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="px-4 mb-6">
+          <div className="relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
             <Input 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search patients..." 
-              className="w-full bg-muted border-transparent pl-9 h-9 text-sm focus-visible:ring-1"
+              placeholder="Search registry..." 
+              className="w-full bg-white border-none shadow-sm rounded-xl pl-10 h-11 text-xs font-bold placeholder:text-slate-300 focus-visible:ring-2 focus-visible:ring-emerald-500/10 transition-all"
             />
           </div>
         </div>
 
-        <ScrollArea className="flex-1 px-3">
+        <ScrollArea className="flex-1 px-4 custom-scrollbar">
           <div className="space-y-1 pb-4">
             {filtered.map((p) => {
               const isActive = pathname === `/doctor/patients/${p.id}`;
@@ -131,18 +138,18 @@ export function DoctorSidebar() {
                 <Link
                   key={p.id}
                   href={`/doctor/patients/${p.id}`}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors group ${
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
                     isActive 
-                      ? "bg-muted border border-border" 
-                      : "border border-transparent hover:bg-muted/50"
+                      ? "bg-white shadow-md border border-slate-100" 
+                      : "hover:bg-white hover:shadow-sm"
                   }`}
                 >
                   <div className={`w-2 h-2 rounded-full shrink-0 ${
-                    p.status === 'critical' ? 'bg-destructive' : 
-                    p.status === 'active' ? 'bg-yellow-500' : 'bg-green-500'
+                    p.status === 'critical' ? 'bg-red-500 animate-pulse' : 
+                    p.status === 'active' ? 'bg-amber-500' : 'bg-emerald-500'
                   }`} />
                   <div className="overflow-hidden flex-1">
-                    <div className={`text-sm font-medium truncate ${isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"}`}>
+                    <div className={`text-[11px] font-bold truncate transition-colors ${isActive ? "text-slate-900" : "text-slate-500 group-hover:text-slate-900"}`}>
                       {p.name}
                     </div>
                   </div>
@@ -154,14 +161,14 @@ export function DoctorSidebar() {
       </div>
 
       {/* Footer / System Control */}
-      <div className="p-4 border-t">
+      <div className="p-4 mt-auto">
         <Button 
           variant="ghost" 
           onClick={handleLogout}
-          className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+          className="w-full justify-start h-12 rounded-xl text-red-500 hover:text-red-600 hover:bg-red-50 font-bold text-xs uppercase tracking-widest transition-all"
         >
-          <LogOut className="w-4 h-4 mr-2" />
-          Sign Out
+          <LogOut className="w-4 h-4 mr-3" />
+          Terminate Session
         </Button>
       </div>
     </aside>

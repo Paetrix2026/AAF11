@@ -129,8 +129,8 @@ class LigandPreparer:
                 with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
                     tmp_pdb = tmp.name
                 
-                cmd = [obabel_path, "-ismi", "-", "-opdb", "-O", tmp_pdb, "--gen3d"]
-                process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=CREATE_NO_WINDOW)
+                cmd = [obabel_path, "-ismi", "-", "-opdb", "-O", tmp_pdb, "--gen3d", "-h"]
+                process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 process.communicate(input=smiles)
                 
                 if os.path.exists(tmp_pdb) and os.path.getsize(tmp_pdb) > 0:
@@ -156,8 +156,8 @@ class LigandPreparer:
             
             # 3. Convert PDB to PDBQT with Open Babel
             obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
-            cmd = [obabel_path, tmp_pdb, "-O", output_path]
-            result = subprocess.run(cmd, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
+            cmd = [obabel_path, tmp_pdb, "-O", output_path, "-h"]
+            result = subprocess.run(cmd, capture_output=True, text=True)
             
             # Cleanup
             if os.path.exists(tmp_pdb):
@@ -168,7 +168,14 @@ class LigandPreparer:
             logger.error(f"Ligand prep failed: {e}")
             return False
 
-def run_vina_docking(receptor_path: str, ligand_path: str, output_path: str, center: tuple = (0, 0, 0), size: tuple = (20, 20, 20)) -> Tuple[Optional[float], Optional[int]]:
+def run_vina_docking(
+    receptor_path: str,
+    ligand_path: str,
+    output_path: str,
+    center: tuple = (0, 0, 0),
+    size: tuple = (20, 20, 20),
+    exhaustiveness: int = 8
+) -> Tuple[Optional[float], Optional[int]]:
     vina_path = shutil.which("vina") or r"C:\tools\vina.EXE"
     if not os.path.exists(vina_path) and shutil.which("vina") is None:
         logger.error("Vina binary not found")
@@ -186,7 +193,7 @@ def run_vina_docking(receptor_path: str, ligand_path: str, output_path: str, cen
             "--size_x", str(size[0]),
             "--size_y", str(size[1]),
             "--size_z", str(size[2]),
-            "--exhaustiveness", "8"
+            "--exhaustiveness", str(exhaustiveness)
         ]
         
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, creationflags=CREATE_NO_WINDOW)

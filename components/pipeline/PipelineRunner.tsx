@@ -4,8 +4,12 @@ import { useState, useRef } from "react";
 import { runPipeline, streamPipeline, submitOutcome } from "@/lib/api";
 import { AgentStepCard } from "./AgentStepCard";
 import { PipelineOutput } from "./PipelineOutput";
-import { UrgencyIndicator } from "@/components/shared/UrgencyIndicator";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Play, RotateCcw, CheckCircle2, AlertCircle, Loader2, Zap, Activity, Info, ChevronRight, Check } from "lucide-react";
 import type { AgentStep, PipelineResult } from "@/types";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface PipelineRunnerProps {
   patientId: string;
@@ -41,7 +45,7 @@ export function PipelineRunner({ patientId }: PipelineRunnerProps) {
 
   const handleRun = async () => {
     if (!pathogen.trim()) {
-      setError("Please enter a pathogen or variant.");
+      setError("Please specify target pathogen.");
       return;
     }
     setError("");
@@ -51,7 +55,6 @@ export function PipelineRunner({ patientId }: PipelineRunnerProps) {
     setOutcome("");
     setOutcomeSubmitted(false);
 
-    // Initialize steps as pending
     const initialSteps: AgentStep[] = AGENT_SEQUENCE.map((name) => ({
       agentName: name,
       status: "pending",
@@ -65,48 +68,34 @@ export function PipelineRunner({ patientId }: PipelineRunnerProps) {
         pathogen: pathogen.trim(),
         variant: variant.trim() || undefined,
         symptoms: symptoms
-          ? symptoms
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean)
+          ? symptoms.split(",").map((s) => s.trim()).filter(Boolean)
           : undefined,
       });
       setRunId(res.runId);
 
-      // Stream SSE updates
       esRef.current = streamPipeline(res.runId, (rawData) => {
         try {
-          const update = JSON.parse(rawData) as {
-            agent?: string;
-            status?: string;
-            message?: string;
-            result?: PipelineResult;
-            done?: boolean;
-          };
-
+          const update = JSON.parse(rawData);
           if (update.done && update.result) {
             setResult(update.result);
             setRunning(false);
             esRef.current?.close();
             return;
           }
-
           if (update.agent) {
             setSteps((prev) =>
               prev.map((s) =>
                 s.agentName === update.agent
                   ? {
                       ...s,
-                      status: (update.status as AgentStep["status"]) ?? "running",
+                      status: update.status ?? "running",
                       message: update.message ?? s.message,
                     }
                   : s
               )
             );
           }
-        } catch {
-          // non-JSON SSE message, ignore
-        }
+        } catch {}
       });
 
       esRef.current.onerror = () => {
@@ -114,7 +103,7 @@ export function PipelineRunner({ patientId }: PipelineRunnerProps) {
         esRef.current?.close();
       };
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start pipeline.");
+      setError(err instanceof Error ? err.message : "Deployment failure");
       setRunning(false);
     }
   };
@@ -124,117 +113,79 @@ export function PipelineRunner({ patientId }: PipelineRunnerProps) {
     try {
       await submitOutcome(runId, outcome, outcomeNotes);
       setOutcomeSubmitted(true);
-    } catch {
-      // Could show toast here
-    }
-  };
-
-  const inputStyle = {
-    width: "100%",
-    padding: "0.625rem 0.75rem",
-    background: "var(--bg-elevated)",
-    border: "1px solid var(--bg-border)",
-    color: "var(--text-primary)",
-    fontFamily: "var(--font-body)",
-    fontSize: "0.875rem",
-    outline: "none",
-  };
-
-  const labelStyle = {
-    display: "block" as const,
-    fontFamily: "var(--font-display)",
-    fontSize: "0.5625rem",
-    color: "var(--text-muted)",
-    letterSpacing: "0.15em",
-    textTransform: "uppercase" as const,
-    marginBottom: "0.375rem",
+    } catch {}
   };
 
   return (
-    <div>
-      {/* Input form */}
+    <div className="bg-white">
+      {/* Input Stage */}
       {!running && !result && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          <div>
-            <label style={labelStyle}>Pathogen / Variant</label>
-            <input
-              type="text"
-              value={pathogen}
-              onChange={(e) => setPathogen(e.target.value)}
-              placeholder="e.g. H5N1, SARS-CoV-2 BA.2.86..."
-              style={inputStyle}
-            />
+        <div className="p-12 space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="grid md:grid-cols-2 gap-10">
+            <div className="space-y-4">
+              <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Biological Target</Label>
+              <Input
+                value={pathogen}
+                onChange={(e) => setPathogen(e.target.value)}
+                placeholder="e.g. H5N1, COVID-19..."
+                className="h-16 bg-slate-50 border-none rounded-2xl font-bold text-lg px-6 focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:bg-white transition-all shadow-sm"
+              />
+            </div>
+            <div className="space-y-4">
+              <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Mutation Signature</Label>
+              <Input
+                value={variant}
+                onChange={(e) => setVariant(e.target.value)}
+                placeholder="e.g. T271A, D614G..."
+                className="h-16 bg-slate-50 border-none rounded-2xl font-bold text-lg px-6 focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:bg-white transition-all shadow-sm"
+              />
+            </div>
           </div>
-          <div>
-            <label style={labelStyle}>Variant (optional)</label>
-            <input
-              type="text"
-              value={variant}
-              onChange={(e) => setVariant(e.target.value)}
-              placeholder="e.g. T271A"
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <label style={labelStyle}>Symptoms (comma separated)</label>
-            <input
-              type="text"
+          
+          <div className="space-y-4">
+            <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Clinical Symptoms</Label>
+            <Input
               value={symptoms}
               onChange={(e) => setSymptoms(e.target.value)}
-              placeholder="fever, cough, fatigue..."
-              style={inputStyle}
+              placeholder="Fever, cough, fatigue..."
+              className="h-16 bg-slate-50 border-none rounded-2xl font-bold text-lg px-6 focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:bg-white transition-all shadow-sm"
             />
           </div>
 
           {error && (
-            <p
-              style={{
-                fontFamily: "var(--font-body)",
-                color: "var(--risk-critical)",
-                fontSize: "0.875rem",
-              }}
-            >
-              {error}
-            </p>
+            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="p-5 bg-red-50 rounded-2xl flex items-center gap-4 text-red-600 border border-red-100">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <p className="font-bold text-xs uppercase tracking-wider">{error}</p>
+            </motion.div>
           )}
 
-          <button
-            type="button"
+          <Button
             onClick={handleRun}
-            style={{
-              padding: "0.875rem",
-              background: "var(--accent-primary)",
-              color: "#0a0b0d",
-              fontFamily: "var(--font-display)",
-              fontSize: "0.875rem",
-              fontWeight: "700",
-              letterSpacing: "0.1em",
-              border: "none",
-              cursor: "pointer",
-              boxShadow: "0 0 20px var(--accent-glow)",
-            }}
+            className="w-full h-20 bg-emerald-500 text-white rounded-3xl font-bold text-lg shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 hover:shadow-emerald-600/30 transition-all active:scale-[0.98]"
           >
-            RUN ANALYSIS
-          </button>
+            <Zap className="w-5 h-5 mr-3 fill-current" />
+            Establish Neural Run
+          </Button>
         </div>
       )}
 
-      {/* Pipeline steps visualization */}
+      {/* Execution Stage */}
       {(running || result) && steps.length > 0 && (
-        <div style={{ marginBottom: "1.5rem" }}>
-          <div
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "0.5625rem",
-              color: "var(--text-muted)",
-              letterSpacing: "0.15em",
-              textTransform: "uppercase",
-              marginBottom: "0.75rem",
-            }}
-          >
-            Pipeline Steps
+        <div className="p-0">
+          <div className="bg-slate-50/50 p-8 flex items-center justify-between border-b border-slate-100">
+            <div className="flex items-center gap-3">
+              <Activity className="w-5 h-5 text-slate-900" />
+              <h3 className="font-bold text-sm text-slate-900 tracking-tight">Sequence Telemetry</h3>
+            </div>
+            {running && (
+              <div className="flex items-center gap-3 px-4 py-2 bg-white rounded-full shadow-sm border border-slate-100">
+                 <Loader2 className="w-4 h-4 animate-spin text-emerald-500" />
+                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Processing Node</span>
+              </div>
+            )}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+          
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 bg-slate-50/30">
             {steps.map((step, idx) => (
               <AgentStepCard key={step.agentName} step={step} index={idx} />
             ))}
@@ -242,175 +193,105 @@ export function PipelineRunner({ patientId }: PipelineRunnerProps) {
         </div>
       )}
 
-      {/* Running indicator */}
-      {running && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.75rem",
-            padding: "1rem",
-            background: "rgba(0,229,195,0.05)",
-            border: "1px solid rgba(0,229,195,0.2)",
-          }}
-        >
-          <div
-            className="agent-active"
-            style={{
-              width: "8px",
-              height: "8px",
-              borderRadius: "50%",
-              background: "var(--accent-primary)",
-              flexShrink: 0,
-            }}
-          />
-          <span
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "0.75rem",
-              color: "var(--accent-primary)",
-              letterSpacing: "0.08em",
-            }}
-          >
-            ANALYSIS IN PROGRESS...
-          </span>
-        </div>
-      )}
-
-      {/* Results */}
+      {/* Output / Report Stage */}
       {result && (
-        <div>
+        <motion.div 
+          initial={{ opacity: 0 }} 
+          animate={{ opacity: 1 }} 
+          className="bg-white"
+        >
           <PipelineOutput result={result} />
 
-          {/* Outcome submission */}
-          {!outcomeSubmitted ? (
-            <div
-              style={{
-                marginTop: "1.5rem",
-                padding: "1.25rem",
-                background: "var(--bg-elevated)",
-                border: "1px solid var(--bg-border)",
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: "0.5625rem",
-                  color: "var(--text-muted)",
-                  letterSpacing: "0.15em",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                RECORD OUTCOME
+          {/* Clinical Verification Bento Card */}
+          <div className="p-12 bg-slate-50/50 border-t border-slate-100">
+            {!outcomeSubmitted ? (
+              <div className="max-w-4xl mx-auto bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/50 overflow-hidden border border-slate-100">
+                <div className="p-10 space-y-10">
+                  <div className="flex items-center gap-4">
+                     <div className="w-12 h-12 bg-emerald-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                        <CheckCircle2 className="w-6 h-6" />
+                     </div>
+                     <div>
+                        <h4 className="text-xl font-bold tracking-tight">Clinical Efficacy Report</h4>
+                        <p className="text-slate-400 text-xs font-medium">Record observation outcome for system calibration</p>
+                     </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {(["effective", "partial", "failed"] as const).map((o) => (
+                      <button
+                        key={o}
+                        onClick={() => setOutcome(o)}
+                        className={`p-6 rounded-2xl font-bold text-xs uppercase tracking-widest transition-all border-2 flex flex-col items-center gap-3 ${
+                          outcome === o 
+                            ? "bg-slate-900 text-white border-slate-900 shadow-xl shadow-slate-900/20" 
+                            : "bg-white text-slate-400 border-slate-100 hover:border-slate-300 hover:text-slate-600"
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${outcome === o ? "bg-emerald-500" : "bg-slate-50"}`}>
+                           {outcome === o && <Check className="w-4 h-4 text-white" />}
+                        </div>
+                        {o}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-4">
+                    <Label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Supplemental Observations</Label>
+                    <Input
+                      placeholder="Enter clinical notes..."
+                      value={outcomeNotes}
+                      onChange={(e) => setOutcomeNotes(e.target.value)}
+                      className="h-16 bg-slate-50 border-none rounded-2xl font-semibold text-sm px-6 focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:bg-white transition-all shadow-sm"
+                    />
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4 pt-6">
+                    <Button
+                      onClick={handleSubmitOutcome}
+                      disabled={!outcome}
+                      className="flex-1 h-16 bg-emerald-500 text-white rounded-2xl font-bold text-sm shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all disabled:opacity-50"
+                    >
+                      Commit Outcome
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setResult(null);
+                        setSteps([]);
+                        setRunId(null);
+                      }}
+                      className="h-16 px-10 text-slate-400 hover:text-slate-900 font-bold text-sm transition-all"
+                    >
+                      <RotateCcw className="w-4 h-4 mr-2" />
+                      Re-Initialize
+                    </Button>
+                  </div>
+                </div>
               </div>
-              <div
-                style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}
-              >
-                {(["effective", "partial", "failed"] as const).map((o) => (
-                  <button
-                    type="button"
-                    key={o}
-                    onClick={() => setOutcome(o)}
-                    style={{
-                      padding: "0.375rem 0.875rem",
-                      background:
-                        outcome === o ? "rgba(0,229,195,0.15)" : "transparent",
-                      border:
-                        outcome === o
-                          ? "1px solid var(--accent-primary)"
-                          : "1px solid var(--bg-border)",
-                      color:
-                        outcome === o ? "var(--accent-primary)" : "var(--text-muted)",
-                      fontFamily: "var(--font-display)",
-                      fontSize: "0.625rem",
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      cursor: "pointer",
-                    }}
-                  >
-                    {o}
-                  </button>
-                ))}
-              </div>
-              <input
-                type="text"
-                placeholder="Clinical notes (optional)..."
-                value={outcomeNotes}
-                onChange={(e) => setOutcomeNotes(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "0.5rem 0.75rem",
-                  marginBottom: "0.75rem",
-                  background: "var(--bg-surface)",
-                  border: "1px solid var(--bg-border)",
-                  color: "var(--text-primary)",
-                  fontFamily: "var(--font-body)",
-                  fontSize: "0.875rem",
-                  outline: "none",
-                }}
-              />
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button
-                  type="button"
-                  onClick={handleSubmitOutcome}
-                  disabled={!outcome}
-                  style={{
-                    padding: "0.5rem 1rem",
-                    background: outcome ? "var(--accent-primary)" : "var(--bg-border)",
-                    color: outcome ? "#0a0b0d" : "var(--text-muted)",
-                    border: "none",
-                    fontFamily: "var(--font-display)",
-                    fontSize: "0.625rem",
-                    letterSpacing: "0.08em",
-                    cursor: outcome ? "pointer" : "not-allowed",
-                  }}
+            ) : (
+              <div className="max-w-md mx-auto p-12 bg-white rounded-[3rem] shadow-2xl shadow-slate-200/50 flex flex-col items-center text-center space-y-8 border border-slate-50">
+                <div className="w-24 h-24 bg-emerald-500 text-white rounded-[2rem] flex items-center justify-center shadow-xl shadow-emerald-500/30">
+                   <CheckCircle2 className="w-10 h-10" />
+                </div>
+                <div>
+                   <h3 className="text-2xl font-bold tracking-tight">Data Synchronized</h3>
+                   <p className="text-sm font-medium text-slate-400 mt-2">Observation sequence complete and stored</p>
+                </div>
+                <Button 
+                   onClick={() => {
+                      setResult(null);
+                      setSteps([]);
+                      setRunId(null);
+                   }}
+                   className="w-full h-14 bg-slate-900 text-white rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg"
                 >
-                  ✓ SUBMIT OUTCOME
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setResult(null);
-                    setSteps([]);
-                    setRunId(null);
-                  }}
-                  style={{
-                    padding: "0.5rem 1rem",
-                    background: "transparent",
-                    border: "1px solid var(--bg-border)",
-                    color: "var(--text-muted)",
-                    fontFamily: "var(--font-display)",
-                    fontSize: "0.625rem",
-                    letterSpacing: "0.08em",
-                    cursor: "pointer",
-                  }}
-                >
-                  NEW ANALYSIS
-                </button>
+                   Return to Terminal
+                </Button>
               </div>
-            </div>
-          ) : (
-            <div
-              style={{
-                marginTop: "1rem",
-                padding: "0.75rem 1rem",
-                background: "rgba(74,222,128,0.08)",
-                border: "1px solid rgba(74,222,128,0.3)",
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: "var(--font-display)",
-                  fontSize: "0.75rem",
-                  color: "var(--risk-safe)",
-                  letterSpacing: "0.08em",
-                }}
-              >
-                ✓ OUTCOME RECORDED
-              </span>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </motion.div>
       )}
     </div>
   );
