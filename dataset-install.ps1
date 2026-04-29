@@ -27,12 +27,12 @@ while (!$success -and $attempts -lt $maxAttempts) {
         $fileSize = (Get-Item $TSV_PATH).Length
         $firstLine = Get-Content $TSV_PATH -TotalCount 1
         
-        if ($fileSize -gt 100MB -and $firstLine -notmatch "<!DOCTYPE html>") {
+        if ($fileSize -gt 1GB -and $firstLine -notmatch "<!DOCTYPE html>") {
             $success = $true
-            Write-Host "[*] Verified dataset found ($($fileSize / 1GB) GB). Skipping download." -ForegroundColor Green
+            Write-Host "[*] Verified dataset found ($([Math]::Round($fileSize / 1GB, 2)) GB). skipping download." -ForegroundColor Green
             continue
         } else {
-            Write-Host "[!] Found invalid/corrupted file. Purging and retrying..." -ForegroundColor Yellow
+            Write-Host "[!] Found invalid or partial file ($([Math]::Round($fileSize / 1MB, 2)) MB). Purging..." -ForegroundColor Yellow
             Remove-Item $TSV_PATH -Force
         }
     }
@@ -44,18 +44,21 @@ while (!$success -and $attempts -lt $maxAttempts) {
         uv pip install gdown --quiet
         
         Write-Host "    [Step 2] Establishing secure stream to Google Drive..." -ForegroundColor Gray
-        # MOVING FLAG BEFORE ID: Some versions of gdown are picky about order.
+        # FINAL VERIFIED FLAG ORDER: -O before URL.
         uv run gdown -O "$TSV_PATH" "https://drive.google.com/uc?id=1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd"
         Set-Location "$PSScriptRoot"
         
         # Immediate validation
         if (Test-Path $TSV_PATH) {
             $firstLine = Get-Content $TSV_PATH -TotalCount 1
+            $finalSize = (Get-Item $TSV_PATH).Length
             if ($firstLine -match "<!DOCTYPE html>") {
-                Write-Host "[!] ERROR: Bypass failed. Google Drive blocked the connection." -ForegroundColor Red
+                Write-Host "[!] ERROR: Bypass failed. Google Drive blocked the connection with an HTML page." -ForegroundColor Red
+            } elseif ($finalSize -lt 1GB) {
+                Write-Host "[!] ERROR: Download incomplete ($([Math]::Round($finalSize / 1MB, 2)) MB). Expected ~1700 MB." -ForegroundColor Red
             } else {
                 $success = $true
-                Write-Host "[SUCCESS] Download verified." -ForegroundColor Green
+                Write-Host "[SUCCESS] Download verified and complete." -ForegroundColor Green
             }
         }
     } catch {
