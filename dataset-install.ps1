@@ -32,11 +32,22 @@ if (!(Test-Path $TSV_PATH)) {
         uv run gdown "1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd" -o "data/cosmic/cmc_export.tsv" --fuzzy
         cd ..
         
+        # Verify the file is NOT an HTML error page
+        $firstLine = Get-Content $TSV_PATH -TotalCount 1
+        if ($firstLine -match "<!DOCTYPE html>" -or $firstLine -match "<html>") {
+            Write-Host "[!] CRITICAL ERROR: Google Drive returned an HTML error page instead of the dataset." -ForegroundColor Red
+            Write-Host "[+] Attempting forced bypass..." -ForegroundColor Yellow
+            Remove-Item $TSV_PATH -Force
+            cd backend
+            uv run gdown "1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd" -o "data/cosmic/cmc_export.tsv" --confirm
+            cd ..
+        }
+
         if (!(Test-Path $TSV_PATH)) {
-            Write-Host "[!] ERROR: Download finished but file not found. Check network connection." -ForegroundColor Red
+            Write-Host "[!] ERROR: Download failed to produce a file." -ForegroundColor Red
             exit 1
         }
-        Write-Host "[+] Download complete." -ForegroundColor Green
+        Write-Host "[+] Download complete and verified." -ForegroundColor Green
     } catch {
         Write-Host "[!] Download failed: $_" -ForegroundColor Red
         exit 1
