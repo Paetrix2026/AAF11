@@ -17,10 +17,14 @@ if (!(Test-Path $DATA_DIR)) {
 # 2. Check for existing dataset
 if (!(Test-Path $TSV_PATH)) {
     if ($DOWNLOAD_URL -eq "REPLACE_WITH_DIRECT_LINK") {
-        Write-Host "[!] ERROR: Download URL not configured." -ForegroundColor Red
-        Write-Host "Please edit this script and set `$DOWNLOAD_URL` to the 1.7GB TSV link."
-        Write-Host "Alternatively, manually place 'cmc_export.tsv' in $DATA_DIR"
-        exit 1
+        Write-Host "`n[!] Manual Input Required" -ForegroundColor Yellow
+        Write-Host "The download URL is not pre-configured in this script."
+        $DOWNLOAD_URL = Read-Host "Please PASTE the COSMIC Download Link (cmc_export.tsv)"
+        
+        if ([string]::IsNullOrWhiteSpace($DOWNLOAD_URL)) {
+            Write-Host "[!] ERROR: No URL provided. Cannot continue." -ForegroundColor Red
+            exit 1
+        }
     }
 
     Write-Host "[+] Downloading 1.7GB dataset. This will take significant time..." -ForegroundColor Yellow
