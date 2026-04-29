@@ -13,19 +13,36 @@ if (!(Test-Path $DATA_DIR)) {
     New-Item -ItemType Directory -Path $DATA_DIR -Force | Out-Null
 }
 
-# 2. Check for existing dataset
+# 2. Check for existing dataset and validate size
+if (Test-Path $TSV_PATH) {
+    $fileSize = (Get-Item $TSV_PATH).Length
+    if ($fileSize -lt 100MB) {
+        Write-Host "[!] Detected corrupted or incomplete dataset file ($($fileSize / 1KB) KB). Cleaning up..." -ForegroundColor Yellow
+        Remove-Item $TSV_PATH -Force
+    }
+}
+
 if (!(Test-Path $TSV_PATH)) {
     Write-Host "[+] Downloading 1.7GB dataset via gdown. This will take significant time..." -ForegroundColor Yellow
     try {
-        # Use gdown via uv to handle Google Drive virus scan prompts
         cd backend
-        uv run gdown "1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd" -o "data/cosmic/cmc_export.tsv"
+        # Ensure gdown is installed first
+        uv pip install gdown
+        # Download using the direct ID which gdown handles correctly for large files
+        uv run gdown "1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd" -o "data/cosmic/cmc_export.tsv" --fuzzy
         cd ..
+        
+        if (!(Test-Path $TSV_PATH)) {
+            Write-Host "[!] ERROR: Download finished but file not found. Check network connection." -ForegroundColor Red
+            exit 1
+        }
         Write-Host "[+] Download complete." -ForegroundColor Green
     } catch {
         Write-Host "[!] Download failed: $_" -ForegroundColor Red
         exit 1
     }
+} else {
+    Write-Host "[*] Valid dataset found. Skipping download." -ForegroundColor Gray
 }
 
 # 3. Build Index
