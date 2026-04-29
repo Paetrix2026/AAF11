@@ -30,6 +30,7 @@ export default function DockingPage() {
   const [pdbId, setPdbId] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [selectedResult, setSelectedResult] = useState<any>(null);
   const [target, setTarget] = useState("");
   const [activeTab, setActiveTab] = useState("receptor");
 
@@ -65,8 +66,6 @@ export default function DockingPage() {
       const formData = new FormData();
       if (pdbId) formData.append("pdb_id", pdbId);
       if (target) formData.append("target", target);
-      // We are ignoring SMILES for now as requested
-      formData.append("smiles", "C"); // Dummy ligand to keep Vina happy if needed
       formData.append("center_x", grid.cx.toString());
       formData.append("center_y", grid.cy.toString());
       formData.append("center_z", grid.cz.toString());
@@ -83,6 +82,9 @@ export default function DockingPage() {
 
       if (data.success) {
         setResult(data.data);
+        if (data.data.results && data.data.results.length > 0) {
+          setSelectedResult(data.data.results[0]);
+        }
         toast.success("Structural analysis complete");
         setActiveTab("results");
       } else {
@@ -215,6 +217,32 @@ export default function DockingPage() {
                         <div className="p-4 bg-foreground text-background font-mono text-[9px] leading-relaxed">
                           {`> PATHOGEN: ${result.target || "OK"}\n> VINA_PDBQT: GENERATED\n> DOCKING_READY: TRUE`}
                         </div>
+
+                        <div className="space-y-4">
+                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-primary">Screening Results</Label>
+                          <div className="space-y-2">
+                            {result.results?.map((res: any, idx: number) => (
+                              <div 
+                                key={idx} 
+                                className={`border-2 p-3 flex justify-between items-center group transition-none cursor-pointer ${
+                                  selectedResult?.name === res.name ? 'border-primary bg-primary/5' : 'border-foreground/10 hover:border-foreground/30'
+                                }`}
+                                onClick={() => setSelectedResult(res)}
+                              >
+                                <div className="flex flex-col">
+                                  <span className="text-[10px] font-black uppercase">{res.name}</span>
+                                  <span className="text-[8px] font-mono text-muted-foreground truncate w-24">{res.smiles}</span>
+                                </div>
+                                <div className="text-right flex items-center gap-2">
+                                  <div className={`text-[12px] font-black ${res.affinity ? 'text-primary' : 'text-red-500'}`}>
+                                    {res.affinity ? `${res.affinity} kcal/mol` : 'FAILED'}
+                                  </div>
+                                  <ChevronRight className={`w-3 h-3 ${selectedResult?.name === res.name ? 'text-primary' : 'text-muted-foreground/20'}`} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </TabsContent>
@@ -267,6 +295,7 @@ export default function DockingPage() {
                 <div className="w-full h-full p-4">
                   <Molecule3DViewer 
                     pdbData={result.pdb_content} 
+                    ligandData={selectedResult?.ligand_pdb}
                     height={500} 
                   />
                 </div>

@@ -20,12 +20,23 @@ def run(state: PipelineState) -> PipelineState:
         state["step_updates"].append("DockingAgent:complete:Receptor structure not ready (returning list only)")
         return state
 
-    if not shutil.which("vina") or not shutil.which("obabel"):
+    vina_path = shutil.which("vina") or r"C:\tools\vina.EXE"
+    obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
+
+    if not os.path.exists(vina_path) and not shutil.which("vina"):
         state["docking_results"] = [
             {"name": c["name"], "smiles": c["smiles"], "affinity": None}
             for c in SCREENING_COMPOUNDS
         ]
-        state["step_updates"].append("DockingAgent:complete:Docking tools missing (vina/obabel)")
+        state["step_updates"].append("DockingAgent:complete:Vina binary missing")
+        return state
+
+    if not os.path.exists(obabel_path) and not shutil.which("obabel"):
+        state["docking_results"] = [
+            {"name": c["name"], "smiles": c["smiles"], "affinity": None}
+            for c in SCREENING_COMPOUNDS
+        ]
+        state["step_updates"].append("DockingAgent:complete:OpenBabel binary missing")
         return state
 
     results = []
@@ -38,11 +49,12 @@ def run(state: PipelineState) -> PipelineState:
         output_path = os.path.join(tmpdir, f"{compound['name']}_out.pdbqt")
         
         if preparer.prepare(compound["smiles"], ligand_path):
-            affinity = run_vina_docking(receptor_path, ligand_path, output_path)
+            affinity, seed = run_vina_docking(receptor_path, ligand_path, output_path)
             return {
                 "name": compound["name"],
                 "smiles": compound["smiles"],
                 "affinity": affinity,
+                "seed": seed,
                 "status": "success" if affinity is not None else "failed"
             }
         else:

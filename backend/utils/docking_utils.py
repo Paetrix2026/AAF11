@@ -81,41 +81,96 @@ class ProteinPreparer:
             f.writelines(cleaned_lines)
 
     def _add_hydrogens(self, input_pdb: str, output_pdb: str) -> None:
-        obabel_path = shutil.which("obabel") or "obabel"
+        obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
         subprocess.run([obabel_path, input_pdb, "-O", output_pdb, "-h"], capture_output=True)
         if not os.path.exists(output_pdb):
             shutil.copy(input_pdb, output_pdb)
 
     def _convert_to_pdbqt(self, input_pdb: str, output_pdbqt: str) -> None:
-        obabel_path = shutil.which("obabel") or "obabel"
+        obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
         subprocess.run([obabel_path, input_pdb, "-O", output_pdbqt, "-xr"], capture_output=True)
         if not os.path.exists(output_pdbqt):
              subprocess.run([obabel_path, input_pdb, "-O", output_pdbqt], capture_output=True)
 
 class LigandPreparer:
-    """Handles SMILES → PDBQT preparation."""
+    """Handles SMILES → PDBQT preparation using RDKit for 3D generation."""
 
     def prepare(self, smiles: str, output_path: str) -> bool:
-        obabel_path = shutil.which("obabel") or "obabel"
+        from rdkit import Chem
+        from rdkit.Chem import AllChem
+        
         try:
-            # Generate 3D coordinates and convert to PDBQT directly
-            cmd = [
-                obabel_path,
-                "-ismi", "-",
-                "-opdbqt",
-                "-O", output_path,
-                "--gen3d",
-                "-p", "7.4"
-            ]
-            process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            process.communicate(input=smiles)
-            return process.returncode == 0 and os.path.exists(output_path)
+            # 1. Generate 3D structure with RDKit
+            mol = Chem.MolFromSmiles(smiles)
+            if mol is None:
+                logger.error(f"Failed to parse SMILES: {smiles}")
+                return False
+            
+            mol = Chem.AddHs(mol)
+            # Try high-quality embedding first
+            res = AllChem.EmbedMolecule(mol, AllChem.ETKDG(), maxAttempts=1000)
+            
+            # Fallback 1: Permissive RDKit embedding
+            if res == -1:
+                logger.warning(f"[v3] Standard embedding failed for {smiles}, trying permissive RDKit embedding")
+                res = AllChem.EmbedMolecule(
+                    mol, 
+                    useRandomCoords=True, 
+                    ignoreSmoothingFailures=True,
+                    useExpTorsionAnglePrefs=True,
+                    useBasicKnowledge=True,
+                    randomSeed=42,
+                    maxAttempts=5000
+                )
+                
+            # Fallback 2: Open Babel --gen3d (Final effort)
+            if res == -1:
+                logger.warning(f"[v3] RDKit failed for {smiles}, using Open Babel fallback")
+                obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
+                with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
+                    tmp_pdb = tmp.name
+                
+                cmd = [obabel_path, "-ismi", "-", "-opdb", "-O", tmp_pdb, "--gen3d"]
+                process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                process.communicate(input=smiles)
+                
+                if os.path.exists(tmp_pdb) and os.path.getsize(tmp_pdb) > 0:
+                    mol = Chem.MolFromPDBFile(tmp_pdb)
+                    if mol:
+                        res = 0 # Success for the sake of the pipeline
+                    os.remove(tmp_pdb)
+
+            if res == -1:
+                logger.error(f"[v3] FATAL: All 3D generation methods failed for {smiles}")
+                return False
+
+            # Optimize geometry
+            try:
+                AllChem.UFFOptimizeMolecule(mol)
+            except Exception as e:
+                logger.warning(f"UFF Optimization failed for {smiles}: {e}")
+
+            # 2. Save to temporary PDB
+            with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
+                tmp_pdb = tmp.name
+                Chem.MolToPDBFile(mol, tmp_pdb)
+            
+            # 3. Convert PDB to PDBQT with Open Babel
+            obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
+            cmd = [obabel_path, tmp_pdb, "-O", output_path]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            # Cleanup
+            if os.path.exists(tmp_pdb):
+                os.remove(tmp_pdb)
+                
+            return os.path.exists(output_path) and os.path.getsize(output_path) > 0
         except Exception as e:
             logger.error(f"Ligand prep failed: {e}")
             return False
 
 def run_vina_docking(receptor_path: str, ligand_path: str, output_path: str, center: tuple = (0, 0, 0), size: tuple = (20, 20, 20)) -> Optional[float]:
-    vina_path = shutil.which("vina") or "C:\\tools\\vina.EXE"
+    vina_path = shutil.which("vina") or r"C:\tools\vina.EXE"
     if not os.path.exists(vina_path) and shutil.which("vina") is None:
         logger.error("Vina binary not found")
         return None
@@ -138,19 +193,29 @@ def run_vina_docking(receptor_path: str, ligand_path: str, output_path: str, cen
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
             logger.error(f"Vina failed: {result.stderr}")
-            return None
+            return None, None
 
         return parse_vina_output(result.stdout)
     except Exception as e:
         logger.error(f"Vina execution error: {e}")
-        return None
+        return None, None
 
-def parse_vina_output(stdout: str) -> Optional[float]:
+def parse_vina_output(stdout: str) -> Tuple[Optional[float], Optional[int]]:
+    affinity = None
+    seed = None
     try:
         for line in stdout.splitlines():
+            if "Random seed:" in line:
+                try:
+                    seed = int(line.split(":")[1].strip())
+                except:
+                    pass
             parts = line.split()
-            if len(parts) >= 2 and parts[0].isdigit():
-                return float(parts[1])
-        return None
+            if affinity is None and len(parts) >= 2 and parts[0].isdigit():
+                try:
+                    affinity = float(parts[1])
+                except:
+                    pass
+        return affinity, seed
     except Exception:
-        return None
+        return affinity, seed

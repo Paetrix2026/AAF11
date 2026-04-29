@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 
 interface Molecule3DViewerProps {
   pdbData?: string;
+  ligandData?: string;
   pdbUrl?: string;
   height?: number;
 }
@@ -15,14 +16,14 @@ declare global {
   }
 }
 
-export function Molecule3DViewer({ pdbData, pdbUrl, height = 320 }: Molecule3DViewerProps) {
+export function Molecule3DViewer({ pdbData, ligandData, pdbUrl, height = 320 }: Molecule3DViewerProps) {
   const viewerRef = useRef<HTMLDivElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const glViewerRef = useRef<any>(null);
 
   useEffect(() => {
     if (!viewerRef.current) return;
-    if (!pdbData && !pdbUrl) return;
+    if (!pdbData && !pdbUrl && !ligandData) return;
 
     const load3Dmol = () => {
       if (!window.$3Dmol) return;
@@ -34,24 +35,23 @@ export function Molecule3DViewer({ pdbData, pdbUrl, height = 320 }: Molecule3DVi
         });
       }
       const viewer = glViewerRef.current;
+      
       if (pdbData) {
         viewer.addModel(pdbData, "pdb");
-        viewer.setStyle({}, { cartoon: { colorscheme: "ssJmol" } });
-        viewer.addSurface("SAS", { opacity: 0.15, color: "#00e5c3" });
-        viewer.zoomTo();
-        viewer.render();
-      } else if (pdbUrl) {
-        fetch(pdbUrl)
-          .then((r) => r.text())
-          .then((data) => {
-            viewer.addModel(data, "pdb");
-            viewer.setStyle({}, { cartoon: { colorscheme: "ssJmol" } });
-            viewer.addSurface("SAS", { opacity: 0.15, color: "#00e5c3" });
-            viewer.zoomTo();
-            viewer.render();
-          })
-          .catch(() => {});
+        viewer.setStyle({chain: "A"}, { cartoon: { colorscheme: "ssJmol", opacity: 0.8 } });
+        // Style all atoms if no chain A
+        viewer.setStyle({}, { cartoon: { colorscheme: "ssJmol", opacity: 0.8 } });
       }
+
+      if (ligandData) {
+        viewer.addModel(ligandData, "sdf");
+        viewer.setStyle({model: -1}, { stick: { colorscheme: "element", radius: 0.2 } });
+        viewer.zoomTo({model: -1});
+      } else {
+        viewer.zoomTo();
+      }
+      
+      viewer.render();
     };
 
     if (window.$3Dmol) {

@@ -37,7 +37,7 @@ def get_pdb_id_from_target(target: str) -> Optional[str]:
 async def perform_docking(
     pdb_id: Optional[str] = Form(None),
     target: Optional[str] = Form(None),
-    smiles: str = Form(...),
+    smiles: Optional[str] = Form(None),
     center_x: float = Form(0.0),
     center_y: float = Form(0.0),
     center_z: float = Form(0.0),
@@ -56,9 +56,6 @@ async def perform_docking(
 
         with tempfile.TemporaryDirectory() as tmpdir:
             receptor_pdbqt = os.path.join(tmpdir, "receptor.pdbqt")
-            ligand_pdbqt = os.path.join(tmpdir, "ligand.pdbqt")
-            output_pdbqt = os.path.join(tmpdir, "output.pdbqt")
-            
             pdb_content = ""
 
             # 1. Get Receptor PDB Content
@@ -74,45 +71,56 @@ async def perform_docking(
             else:
                 raise HTTPException(status_code=400, detail="Either pdb_id, target, or pdb_file must be provided")
 
-            # 2. Prepare Receptor (Production-Grade)
+            # 2. Prepare Receptor
             protein_prep = ProteinPreparer()
-            try:
-                # We use the current directory or tmpdir for the PDBQT output
-                await protein_prep.prepare(pdb_content, pdb_id or "uploaded", tmpdir)
-                # The preparer saves to {pdb_id}_receptor.pdbqt
-                actual_receptor_path = os.path.join(tmpdir, f"{pdb_id or 'uploaded'}_receptor.pdbqt")
-            except Exception as e:
-                logger.error(f"Receptor preparation failed: {e}")
-                raise HTTPException(status_code=500, detail=f"Receptor preparation failed: {str(e)}")
+            await protein_prep.prepare(pdb_content, pdb_id or "uploaded", tmpdir)
+            actual_receptor_path = os.path.join(tmpdir, f"{pdb_id or 'uploaded'}_receptor.pdbqt")
 
-            # 3. Prepare Ligand
+            # 3. Docking (Single or Screening)
+            results = []
+            compounds_to_dock = []
+            if smiles:
+                compounds_to_dock = [{"name": "Manual", "smiles": smiles}]
+            else:
+                compounds_to_dock = SCREENING_COMPOUNDS
+
             preparer = LigandPreparer()
-            if not preparer.prepare(smiles, ligand_pdbqt):
-                raise HTTPException(status_code=500, detail="Ligand preparation failed")
+            for compound in compounds_to_dock:
+                ligand_pdbqt = os.path.join(tmpdir, f"{compound['name']}.pdbqt")
+                output_pdbqt = os.path.join(tmpdir, f"{compound['name']}_out.pdbqt")
+                
+                if preparer.prepare(compound["smiles"], ligand_pdbqt):
+                    affinity, seed = run_vina_docking(
+                        actual_receptor_path, ligand_pdbqt, output_pdbqt,
+                        center=(center_x, center_y, center_z),
+                        size=(size_x, size_y, size_z)
+                    )
+                    results.append({
+                        "name": compound["name"],
+                        "smiles": compound["smiles"],
+                        "affinity": affinity,
+                        "seed": seed,
+                        "status": "success" if affinity is not None else "failed",
+                        "ligand_pdb": open(ligand_pdbqt, "r").read() if os.path.exists(ligand_pdbqt) else None
+                    })
 
-            # 4. Run Docking with Vina
-            affinity = run_vina_docking(
-                actual_receptor_path, ligand_pdbqt, output_pdbqt,
-                center=(center_x, center_y, center_z),
-                size=(size_x, size_y, size_z)
-            )
-
-            if affinity is None:
-                raise HTTPException(status_code=500, detail="Docking simulation failed. Ensure Vina and OpenBabel are installed.")
-
+            # Return results
             return APIResponse(
                 success=True,
                 data={
-                    "affinity": affinity,
+                    "results": results,
                     "pdb_id": pdb_id,
                     "target": target,
-                    "smiles": smiles,
-                    "binding_energy": f"{affinity} kcal/mol",
                     "pdb_content": pdb_content,
-                    "docked_pdb": open(output_pdbqt, "r").read() if os.path.exists(output_pdbqt) else None
                 },
-                message="Molecular docking completed successfully using AutoDock Vina."
+                message="Molecular docking screening completed successfully."
             )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Standalone docking error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
     except HTTPException:
         raise
