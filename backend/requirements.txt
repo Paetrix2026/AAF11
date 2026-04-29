@@ -6,19 +6,47 @@ pydantic==2.10.3
 pydantic-settings==2.1.0
 python-dotenv==1.0.1
 python-multipart==0.0.9
-
-# Database
-sqlalchemy==2.0.27
-asyncpg==0.29.0
-alembic==1.13.1
+uv==0.11.8
 
 # Auth
 python-jose[cryptography]==3.3.0
+bcrypt==4.1.2
 passlib[bcrypt]==1.7.4
 
-# AI & Bio
+# LLM & Reasoning
+langchain==0.3.13
+langchain-groq==0.2.3
+langgraph==0.2.60
+langsmith==0.1.147
+
+# LLM Providers
+groq==0.13.0
 google-generativeai==0.4.0
-httpx
-rdkit-pypi
-biopython
-requests
+
+# Chemistry & Biology
+rdkit==2024.9.5
+biopython==1.84
+
+# Database
+sqlalchemy==2.0.27
+asyncpg==0.30.0
+alembic==1.13.1
+
+# HTTP
+requests==2.32.3
+httpx==0.28.1
+
+# Data / ML
+numpy>=1.22.4,<2.0
+pandas==2.2.0
+scikit-learn==1.5.0
+pillow>=10.3.0
+reportlab==4.2.5
+
+# Alerts
+python-telegram-bot==21.5
+
+# System dependencies (install separately, not via pip):
+# - openbabel (obabel): apt install openbabel / brew install open-babel
+# - AutoDock Vina binary: apt install autodock-vina / brew install autodock-vina
+# - MAFFT: apt install mafft / brew install mafft
