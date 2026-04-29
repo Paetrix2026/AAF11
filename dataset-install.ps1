@@ -82,6 +82,6 @@ if (Test-Path "$PSScriptRoot\backend") {
     Write-Host "`n[SUCCESS] Local dataset is ready for high-speed diagnostic searches." -ForegroundColor Green
     Write-Host "[*] You can now use the 'Local Vault' search in the Pipeline Engine." -ForegroundColor Cyan
 } else {
-    Write-Host "[!] ERROR: Could not find backend directory." -ForegroundColor Red
+    Write-Host "[!] ERROR: Could not find backend directory at $PSScriptRoot\backend" -ForegroundColor Red
     exit 1
-Write-Host "[*] You can now use the 'Local Vault' search in the Pipeline Engine." -ForegroundColor Cyan
+}
