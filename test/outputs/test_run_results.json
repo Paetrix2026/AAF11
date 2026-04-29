@@ -1,0 +1,26 @@
+{
+  "recommendations": [
+    {
+      "drug": "DrugB",
+      "effectiveness": "low",
+      "risk": "moderate",
+      "urgency": "monitor",
+      "decision": "Recommendation for DrugB: MAINTAIN WITH MONITORING. Sub-optimal stability.",
+      "metadata": {
+        "stability": 0.3143,
+        "outcome": "decline"
+      }
+    },
+    {
+      "drug": "DrugA",
+      "effectiveness": "low",
+      "risk": "critical",
+      "urgency": "immediate",
+      "decision": "Recommendation for DrugA: STOP. High resistance profile detected.",
+      "metadata": {
+        "stability": 0.2743,
+        "outcome": "fail"
+      }
+    }
+  ]
+}

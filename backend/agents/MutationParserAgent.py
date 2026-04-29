@@ -61,7 +61,10 @@ def align_and_parse_mutations(sequences: List[str]) -> List[str]:
 
 def run(state: PipelineState) -> PipelineState:
     state["step_updates"].append("MutationParserAgent:running:Analyzing mutation profile...")
-    sequences = state.get("sequences") or []
+    sequences = state.get("sequences")
+    if not sequences:
+        raise ValueError("MutationParserAgent: Missing 'sequences' from FetchAgent - cannot parse mutations without protein sequences")
+
     mutations = align_and_parse_mutations(sequences)
     state["mutations"] = mutations
     count = len(mutations)

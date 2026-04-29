@@ -6,7 +6,7 @@
  * Requires DATABASE_URL in .env.local
  *
  * Demo credentials:
- *   Doctor: doctor@protengine.ai / demo1234
+ *   Doctor: doctor@healynx.ai / demo1234
  */
 
 import { drizzle } from "drizzle-orm/neon-http";
@@ -59,7 +59,7 @@ async function seed() {
   console.log("🌱 Starting seed...\n");
 
   // --- Create Doctor ---
-  const doctorEmail = "doctor@protengine.ai";
+  const doctorEmail = "doctor@healynx.ai";
   const existing = await db
     .select({ id: users.id })
     .from(users)
@@ -149,7 +149,7 @@ async function seed() {
 
   console.log("\n✅ Seed complete!");
   console.log("\n📋 Demo Credentials:");
-  console.log("   Doctor:  doctor@protengine.ai / demo1234");
+  console.log("   Doctor:  doctor@healynx.ai / demo1234");
   console.log("\n⚠️  Note: Passwords are hashed with scrypt (not bcrypt).");
   console.log("   The Python backend uses bcrypt. Run backend/db/seed.py instead for production seeding.\n");
 }

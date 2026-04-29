@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🧬 Healynx — Next-Gen Antiviral AI Pipeline
 
-## Getting Started
+Healynx is a powerful, multi-agent orchestrator designed to accelerate antiviral discovery and pathogen analysis. By integrating genetic sequence retrieval, molecular docking, and AI-driven explainability, Healynx provides clinicians and researchers with rapid, data-backed recommendations for emerging viral threats.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🚀 Key Features
+
+- **Multi-Agent Pipeline**: Orchestrates 10+ specialized agents using **LangGraph**.
+- **Genetic Analysis**: Automated sequence retrieval from **NCBI Entrez** and mutation parsing via **MAFFT**.
+- **Molecular Docking**: High-throughput screening against known antivirals using **AutoDock Vina**.
+- **ADMET Prediction**: Real-time property prediction (toxicity, absorption, etc.) using **RDKit**.
+- **Explainable AI**: Synthesis of complex scientific data into human-readable recommendations using **Groq (Llama 3.3)**.
+- **Modern Dashboard**: High-performance UI built with **Next.js 15**, **Framer Motion**, and **GSAP** for a premium experience.
+
+---
+
+## 🛠️ Technology Stack
+
+| Component | Technologies |
+| :--- | :--- |
+| **Frontend** | Next.js 15, Tailwind CSS 4, Framer Motion, GSAP, Plotly.js |
+| **Backend** | FastAPI, LangGraph, Python 3.11 |
+| **Database** | Neon (Postgres), Drizzle ORM |
+| **Scientific** | RDKit, AutoDock Vina, MAFFT, OpenBabel |
+| **AI/LLM** | Groq (Llama 3.3 70B), NCBI Entrez API |
+
+---
+
+## 📦 Quick Setup
+
+### Prerequisites
+- Python 3.11+
+- Node.js 20+
+- System Binaries (optional for full pipeline): `vina`, `obabel`, `mafft`
+
+### One-Command Installation
+We provide automated setup scripts for Windows and Linux/macOS that handle virtual environments, dependencies, and shell configuration.
+
+**Windows (PowerShell):**
+```powershell
+powershell -ExecutionPolicy Bypass -File setup.ps1
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**Linux / macOS (Bash):**
+```bash
+chmod +x setup.sh && ./setup.sh
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🚦 Getting Started
 
-## Learn More
+### 1. Environment Variables
+Copy `.env.example` to `.env.local` (frontend) and `backend/.env` (backend).
+- `DATABASE_URL`: Your Neon Postgres connection string.
+- `GROQ_API_KEY`: For the Explainability Agent.
+- `NCBI_EMAIL`: For the Fetch Agent.
 
-To learn more about Next.js, take a look at the following resources:
+### 2. Database Initialization
+```bash
+npm run db:push
+# Then seed the data
+cd backend && python db/seed.py
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 3. Start Development Servers
+**Backend:**
+```bash
+cd backend
+uvicorn main:app --reload --port 8000
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**Frontend:**
+```bash
+npm run dev
+```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🧠 Agent Architecture
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Healynx uses a linear pipeline (with conditional logic) to process pathogens:
+
+1.  **Planner**: Determines the necessary steps.
+2.  **Fetch**: Retrieves sequences from NCBI.
+3.  **Mutation Parser**: Aligns and scores mutations.
+4.  **Structure Prep**: Prepares PDB files for docking.
+5.  **Docking**: Performs Vina screening.
+6.  **ADMET**: Predicts pharmacokinetics.
+7.  **Resistance/Selectivity**: Checks for known resistance markers and off-targets.
+8.  **Explainability**: Synthesizes results into a clinical recommendation.
+
+For more details, see [AGENTS.md](./AGENTS.md).
+
+---
+
+## 📄 License
+Healynx is proprietary software. All rights reserved.

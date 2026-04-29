@@ -62,7 +62,7 @@ npm run dev              # http://localhost:3000
 ```
 
 ### Demo Login
-- Doctor: `doctor@protengine.ai` / `demo1234`
+- Doctor: `doctor@healynx.ai` / `demo1234`
 
 ## Environment Variables
 

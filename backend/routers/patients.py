@@ -107,9 +107,9 @@ async def create_patient(data: PatientCreate, current_user: dict = Depends(get_c
             data.age,
             data.gender,
             data.location,
-            json.dumps(data.conditions or []),
-            json.dumps(data.medications or []),
-            data.status or "active",
+            json.dumps(data.conditions),
+            json.dumps(data.medications),
+            data.status,
         )
 
     return APIResponse(success=True, data=_serialize_patient(dict(row)), message="Patient created")
@@ -128,9 +128,9 @@ async def update_patient(patient_id: str, data: PatientCreate, current_user: dic
             RETURNING *
             """,
             data.name, data.age, data.gender, data.location,
-            json.dumps(data.conditions or []),
-            json.dumps(data.medications or []),
-            data.status or "active",
+            json.dumps(data.conditions),
+            json.dumps(data.medications),
+            data.status,
             patient_id,
             current_user["sub"],
         )

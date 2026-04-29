@@ -1,0 +1,51 @@
+[
+  {
+    "name": "Remdesivir",
+    "binding": -9.2,
+    "resistance": 0.1,
+    "side_effects": ["nausea", "headache"],
+    "interactions": ["Chloroquine"]
+  },
+  {
+    "name": "Paxlovid",
+    "binding": -10.5,
+    "resistance": 0.05,
+    "side_effects": ["dysgeusia", "diarrhea", "hypertension"],
+    "interactions": ["Statin", "Rifampin"]
+  },
+  {
+    "name": "Molnupiravir",
+    "binding": -8.1,
+    "resistance": 0.15,
+    "side_effects": ["dizziness", "nausea"],
+    "interactions": []
+  },
+  {
+    "name": "Favipiravir",
+    "binding": -7.5,
+    "resistance": 0.3,
+    "side_effects": ["hyperuricemia", "diarrhea"],
+    "interactions": ["Pyrazinamide"]
+  },
+  {
+    "name": "Oseltamivir",
+    "binding": -8.8,
+    "resistance": 0.2,
+    "side_effects": ["vomiting", "headache"],
+    "interactions": ["Warfarin"]
+  },
+  {
+    "name": "CardioFix",
+    "binding": -9.5,
+    "resistance": 0.1,
+    "side_effects": ["cardiotoxic", "arrhythmia"],
+    "interactions": []
+  },
+  {
+    "name": "DiabetoSafe",
+    "binding": -7.2,
+    "resistance": 0.4,
+    "side_effects": ["hypoglycemia"],
+    "interactions": ["Insulin"]
+  }
+]

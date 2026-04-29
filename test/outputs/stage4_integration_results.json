@@ -1,0 +1,40 @@
+{
+  "recommendations": [
+    {
+      "drug": "Paxlovid",
+      "risk": "MODERATE",
+      "urgency": "monitor",
+      "decision": "monitor closely"
+    },
+    {
+      "drug": "Remdesivir",
+      "risk": "LOW",
+      "urgency": "continue",
+      "decision": "continue"
+    },
+    {
+      "drug": "Oseltamivir",
+      "risk": "HIGH",
+      "urgency": "switch",
+      "decision": "switch treatment"
+    },
+    {
+      "drug": "Molnupiravir",
+      "risk": "HIGH",
+      "urgency": "switch",
+      "decision": "switch treatment"
+    },
+    {
+      "drug": "Favipiravir",
+      "risk": "HIGH",
+      "urgency": "switch",
+      "decision": "switch treatment"
+    },
+    {
+      "drug": "DiabetoSafe",
+      "risk": "HIGH",
+      "urgency": "switch",
+      "decision": "switch treatment"
+    }
+  ]
+}

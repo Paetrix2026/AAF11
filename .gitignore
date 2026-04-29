@@ -114,3 +114,4 @@ htmlcov/
 
 # NOTE: setup.ps1, setup.sh, backend/setup.bat are intentionally
 # tracked — teammates need them to bootstrap their environment.
+Reference/

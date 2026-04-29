@@ -35,8 +35,14 @@ def score_resistance(mutations: list, drug: str, resistance_data: dict) -> float
 
 def run(state: PipelineState) -> PipelineState:
     state["step_updates"].append("ResistanceAgent:running:Scoring resistance profiles...")
-    mutations = state.get("mutations") or []
-    docking = state.get("docking_results") or []
+    mutations = state.get("mutations")
+    if not mutations:
+        raise ValueError("ResistanceAgent: Missing 'mutations' from MutationParserAgent - cannot score resistance without mutations")
+
+    docking = state.get("docking_results")
+    if not docking:
+        raise ValueError("ResistanceAgent: Missing 'docking_results' from DockingAgent - cannot score resistance without compounds")
+
     resistance_data = load_resistance_data()
 
     resistance_scores = {}

@@ -5,6 +5,7 @@ sse-starlette==2.1.3
 pydantic==2.10.3
 python-dotenv==1.0.1
 python-multipart==0.0.9
+uv==0.11.8
 
 # Auth
 python-jose[cryptography]==3.3.0

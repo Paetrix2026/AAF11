@@ -8,7 +8,7 @@ Run from backend/ directory:
 Requires DATABASE_URL in backend/.env
 
 Creates:
-- Demo doctor account: doctor@protengine.ai / demo1234
+- Demo doctor account: doctor@healynx.ai / demo1234
 - 3 demo patients linked to the doctor
 
 IMPORTANT: This uses bcrypt for password hashing, compatible with the
@@ -76,7 +76,7 @@ async def seed():
 
     try:
         # Create doctor
-        doctor_email = "doctor@proteinengine.ai"
+        doctor_email = "doctor@healynx.ai"
         existing = await conn.fetchrow("SELECT id FROM users WHERE email=$1", doctor_email)
 
         if existing:
@@ -125,9 +125,9 @@ async def seed():
             )
             print(f"Created patient: {p['name']} (id: {row['id']})")
 
-        print("\nSeed complete!")
-        print("\nDemo Credentials:")
-        print("   Doctor:  doctor@proteinengine.ai / demo1234")
+        print("\n✅ Seed complete!")
+        print("\n📋 Demo Credentials:")
+        print("   Doctor:  doctor@healynx.ai / demo1234")
 
     finally:
         await conn.close()

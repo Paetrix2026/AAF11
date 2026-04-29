@@ -1,0 +1,8 @@
+{
+  "mutation": "EGFR T790M",
+  "patient_profile": {
+    "heart_condition": true,
+    "diabetes": false,
+    "medications": ["Statin"]
+  }
+}

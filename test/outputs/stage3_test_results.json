@@ -1,0 +1,75 @@
+{
+  "primaryDrug": "Paxlovid",
+  "primaryConfidence": 92,
+  "primaryResistanceRisk": "low",
+  "alternativeDrug": "Remdesivir",
+  "alternativeConfidence": 78,
+  "urgency": "monitor",
+  "riskLevel": "MODERATE",
+  "doctorSummary": "The primary recommendation is Paxlovid due to its high stability and binding score. Simulation predicts a 6+ month stable window.",
+  "patientSummary": "We recommend starting the primary antiviral treatment immediately.",
+  "actionRequired": "Begin primary therapy as soon as possible.",
+  "decisionScore": 0.385,
+  "stabilityScore": 0,
+  "predictedOutcome": "stable",
+  "timeToFailure": "6+ months",
+  "simulationResults": [
+    {
+      "name": "Paxlovid",
+      "binding": -10.5,
+      "resistance": 0.05,
+      "patient_risk": 0.5,
+      "decision_score": 0.385,
+      "predicted_outcome": "stable",
+      "time_to_failure": "6+ months"
+    },
+    {
+      "name": "Remdesivir",
+      "binding": -9.2,
+      "resistance": 0.1,
+      "patient_risk": 0.1,
+      "decision_score": 0.3833,
+      "predicted_outcome": "stable",
+      "time_to_failure": "6+ months"
+    },
+    {
+      "name": "Oseltamivir",
+      "binding": -8.8,
+      "resistance": 0.2,
+      "patient_risk": 0.1,
+      "decision_score": 0.32,
+      "predicted_outcome": "decline",
+      "time_to_failure": "3-4 months"
+    },
+    {
+      "name": "Molnupiravir",
+      "binding": -8.1,
+      "resistance": 0.15,
+      "patient_risk": 0.1,
+      "decision_score": 0.2767,
+      "predicted_outcome": "decline",
+      "time_to_failure": "3-4 months"
+    },
+    {
+      "name": "Favipiravir",
+      "binding": -7.5,
+      "resistance": 0.3,
+      "patient_risk": 0.1,
+      "decision_score": 0.1817,
+      "predicted_outcome": "decline",
+      "time_to_failure": "3-4 months"
+    },
+    {
+      "name": "DiabetoSafe",
+      "binding": -7.2,
+      "resistance": 0.4,
+      "patient_risk": 0.1,
+      "decision_score": 0.1267,
+      "predicted_outcome": "decline",
+      "time_to_failure": "3-4 months"
+    }
+  ],
+  "mutations": [
+    "H275Y"
+  ]
+}
