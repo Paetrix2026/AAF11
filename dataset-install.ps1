@@ -43,8 +43,8 @@ while (!$success -and $attempts -lt $maxAttempts) {
         uv pip install gdown --quiet
         
         Write-Host "    [Step 2] Establishing secure stream to Google Drive..." -ForegroundColor Gray
-        # Use gdown with specific large-file bypass flags
-        uv run gdown "1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd" -o "$TSV_PATH" --fuzzy --confirm
+        # FIXED: gdown uses -O (uppercase) for output. Removed unrecognized flags.
+        uv run gdown "1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd" -O "$TSV_PATH"
         Set-Location "$PSScriptRoot"
         
         # Immediate validation
