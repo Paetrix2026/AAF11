@@ -1,7 +1,7 @@
 # Healynx Dataset Installation Script
 # This script handles the download and indexing of the 1.7GB COSMIC dataset.
 
-$DATA_DIR = "backend/data/cosmic"
+$DATA_DIR = "$PSScriptRoot/backend/data/cosmic"
 $TSV_PATH = "$DATA_DIR/cmc_export.tsv"
 # GOOGLE DRIVE ID: 1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd (1.7GB COSMIC TSV)
 
@@ -44,7 +44,7 @@ while (!$success -and $attempts -lt $maxAttempts) {
         
         Write-Host "    [Step 2] Establishing secure stream to Google Drive..." -ForegroundColor Gray
         # Use gdown with specific large-file bypass flags
-        uv run gdown "1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd" -o "data/cosmic/cmc_export.tsv" --fuzzy --confirm
+        uv run gdown "1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd" -o "$TSV_PATH" --fuzzy --confirm
         Set-Location "$PSScriptRoot"
         
         # Immediate validation
