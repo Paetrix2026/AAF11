@@ -126,18 +126,26 @@ class LigandPreparer:
             if res == -1:
                 logger.warning(f"RDKit embedding failed for {smiles}, using Open Babel")
                 obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
-                with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
-                    tmp_pdb = tmp.name
+                with tempfile.NamedTemporaryFile(suffix=".sdf", delete=False) as tmp:
+                    tmp_sdf = tmp.name
                 
-                cmd = [obabel_path, "-ismi", "-", "-opdb", "-O", tmp_pdb, "--gen3d", "-h"]
-                process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                cmd = [obabel_path, "-ismi", "-", "-osdf", "-O", tmp_sdf, "--gen3d", "-h"]
+                process = subprocess.Popen(
+                    cmd,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    creationflags=CREATE_NO_WINDOW,
+                )
                 process.communicate(input=smiles)
                 
-                if os.path.exists(tmp_pdb) and os.path.getsize(tmp_pdb) > 0:
-                    mol = Chem.MolFromPDBFile(tmp_pdb)
-                    if mol:
+                if os.path.exists(tmp_sdf) and os.path.getsize(tmp_sdf) > 0:
+                    suppl = Chem.SDMolSupplier(tmp_sdf)
+                    if suppl and len(suppl) > 0:
+                        mol = suppl[0]
                         res = 0 # Success for the sake of the pipeline
-                    os.remove(tmp_pdb)
+                    os.remove(tmp_sdf)
 
             if res == -1:
                 logger.error(f"[v3] FATAL: All 3D generation methods failed for {smiles}")
@@ -149,19 +157,21 @@ class LigandPreparer:
             except Exception as e:
                 logger.warning(f"UFF Optimization failed for {smiles}: {e}")
 
-            # 2. Save to temporary PDB
-            with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
-                tmp_pdb = tmp.name
-                Chem.MolToPDBFile(mol, tmp_pdb)
+            # 2. Save to temporary SDF
+            with tempfile.NamedTemporaryFile(suffix=".sdf", delete=False) as tmp:
+                tmp_sdf = tmp.name
             
-            # 3. Convert PDB to PDBQT with Open Babel
+            with open(tmp_sdf, "w") as f:
+                f.write(Chem.MolToMolBlock(mol))
+            
+            # 3. Convert SDF to PDBQT with Open Babel
             obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
-            cmd = [obabel_path, tmp_pdb, "-O", output_path, "-h"]
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            cmd = [obabel_path, tmp_sdf, "-O", output_path, "-h"]
+            result = subprocess.run(cmd, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
             
             # Cleanup
-            if os.path.exists(tmp_pdb):
-                os.remove(tmp_pdb)
+            if os.path.exists(tmp_sdf):
+                os.remove(tmp_sdf)
                 
             return os.path.exists(output_path) and os.path.getsize(output_path) > 0
         except Exception as e:

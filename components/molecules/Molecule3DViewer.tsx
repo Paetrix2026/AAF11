@@ -44,7 +44,7 @@ export function Molecule3DViewer({ pdbData, ligandData, pdbUrl, height = 320 }: 
       }
 
       if (ligandData) {
-        viewer.addModel(ligandData, "sdf");
+        viewer.addModel(ligandData, "pdbqt");
         viewer.setStyle({model: -1}, { stick: { colorscheme: "element", radius: 0.2 } });
         viewer.zoomTo({model: -1});
       } else {
@@ -68,7 +68,7 @@ export function Molecule3DViewer({ pdbData, ligandData, pdbUrl, height = 320 }: 
         glViewerRef.current.clear();
       }
     };
-  }, [pdbData, pdbUrl]);
+  }, [pdbData, pdbUrl, ligandData]);
 
   if (!pdbData && !pdbUrl) {
     return (
