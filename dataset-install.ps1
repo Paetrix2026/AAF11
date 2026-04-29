@@ -38,14 +38,14 @@ while (!$success -and $attempts -lt $maxAttempts) {
 
     Write-Host "[+] Attempt $($attempts) of $($maxAttempts): Downloading 1.7GB dataset..." -ForegroundColor Cyan
     try {
-        cd backend
+        Set-Location "$PSScriptRoot/backend"
         Write-Host "    [Step 1] Synchronizing download tools..." -ForegroundColor Gray
         uv pip install gdown --quiet
         
         Write-Host "    [Step 2] Establishing secure stream to Google Drive..." -ForegroundColor Gray
         # Use gdown with specific large-file bypass flags
         uv run gdown "1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd" -o "data/cosmic/cmc_export.tsv" --fuzzy --confirm
-        cd ..
+        Set-Location "$PSScriptRoot"
         
         # Immediate validation
         if (Test-Path $TSV_PATH) {
@@ -59,7 +59,7 @@ while (!$success -and $attempts -lt $maxAttempts) {
         }
     } catch {
         Write-Host "[!] System Error during download: $_" -ForegroundColor Red
-        cd $PSScriptRoot # Ensure we reset path even on fail
+        Set-Location "$PSScriptRoot" # Ensure we reset path even on fail
     }
 }
 
