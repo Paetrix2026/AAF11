@@ -4,7 +4,8 @@
 $DATA_DIR = "backend/data/cosmic"
 $TSV_PATH = "$DATA_DIR/cmc_export.tsv"
 # PLACEHOLDER: Replace with the actual S3/Drive link provided in the group chat
-$DOWNLOAD_URL = "REPLACE_WITH_DIRECT_LINK" 
+# GOOGLE DRIVE ID: 1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd (1.7GB COSMIC TSV)
+$DOWNLOAD_URL = "https://drive.google.com/uc?id=1e0fhTNt3yGOmYSZGsJpAbpDvb6zySyEd&export=download" 
 
 Write-Host "--- HEALYNX DATASET PROVISIONER ---" -ForegroundColor Cyan
 
@@ -16,17 +17,6 @@ if (!(Test-Path $DATA_DIR)) {
 
 # 2. Check for existing dataset
 if (!(Test-Path $TSV_PATH)) {
-    if ($DOWNLOAD_URL -eq "REPLACE_WITH_DIRECT_LINK") {
-        Write-Host "`n[!] Manual Input Required" -ForegroundColor Yellow
-        Write-Host "The download URL is not pre-configured in this script."
-        $DOWNLOAD_URL = Read-Host "Please PASTE the COSMIC Download Link (cmc_export.tsv)"
-        
-        if ([string]::IsNullOrWhiteSpace($DOWNLOAD_URL)) {
-            Write-Host "[!] ERROR: No URL provided. Cannot continue." -ForegroundColor Red
-            exit 1
-        }
-    }
-
     Write-Host "[+] Downloading 1.7GB dataset. This will take significant time..." -ForegroundColor Yellow
     try {
         Invoke-WebRequest -Uri $DOWNLOAD_URL -OutFile $TSV_PATH -ShowProgress
