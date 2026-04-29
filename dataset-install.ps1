@@ -19,7 +19,7 @@ if (!(Test-Path $DATA_DIR)) {
 if (!(Test-Path $TSV_PATH)) {
     Write-Host "[+] Downloading 1.7GB dataset. This will take significant time..." -ForegroundColor Yellow
     try {
-        Invoke-WebRequest -Uri $DOWNLOAD_URL -OutFile $TSV_PATH -ShowProgress
+        Invoke-WebRequest -Uri $DOWNLOAD_URL -OutFile $TSV_PATH
         Write-Host "[+] Download complete." -ForegroundColor Green
     } catch {
         Write-Host "[!] Download failed: $_" -ForegroundColor Red
