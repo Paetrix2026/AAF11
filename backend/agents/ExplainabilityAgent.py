@@ -9,11 +9,12 @@ RECOMMENDATION_PROMPT = """You are a clinical AI assistant. Based on the pipelin
 
 Pathogen: {pathogen}
 Mutations detected: {mutations}
-Top docked compounds: {docking_results}
-ADMET scores: {admet_scores}
-Resistance profile: {resistance_scores}
-Selectivity scores: {selectivity_scores}
-Similar historical cases: {similar_cases}
+
+Simulation Results (Stability & Time-to-Failure):
+{simulation_results}
+
+Decision Ranking (Weighted Scores):
+{ranked_drugs}
 
 Return ONLY a valid JSON object with these exact fields:
 {{
@@ -22,16 +23,12 @@ Return ONLY a valid JSON object with these exact fields:
   "primary_resistance_risk": "low",
   "alternative_drug": "backup option name",
   "alternative_confidence": 70,
-  "urgency": "24_hours",
-  "risk_level": "high",
-  "doctor_summary": "2-3 sentence clinical summary for the doctor",
+  "urgency": "immediate | switch | monitor | continue",
+  "risk_level": "critical | high | moderate | low",
+  "doctor_summary": "2-3 sentence clinical summary for the doctor. Mention stability and time-to-failure.",
   "patient_summary": "1 sentence plain English for patient",
-  "action_required": "what the doctor should do right now"
+  "action_required": "what the doctor should do right now based on urgency"
 }}
-
-urgency values: immediate, 24_hours, 48_hours, monitor
-risk_level values: critical, high, moderate, low
-primary_resistance_risk values: low, moderate, high
 
 Respond ONLY with valid JSON, no other text."""
 
@@ -39,16 +36,22 @@ Respond ONLY with valid JSON, no other text."""
 def run(state: PipelineState) -> PipelineState:
     state["step_updates"].append("ExplainabilityAgent:running:Synthesizing recommendation with AI...")
 
+    # Validate required fields
+    simulation_results = state.get("simulation_results")
+    if not simulation_results:
+        raise ValueError("ExplainabilityAgent: Missing 'simulation_results' - cannot generate recommendations without simulation data")
+
+    ranked_drugs = state.get("ranked_drugs")
+    if not ranked_drugs:
+        raise ValueError("ExplainabilityAgent: Missing 'ranked_drugs' - cannot generate recommendations without ranked drugs")
+
     try:
         llm = get_llm()
         prompt = RECOMMENDATION_PROMPT.format(
             pathogen=state["pathogen"],
             mutations=json.dumps(state.get("mutations") or []),
-            docking_results=json.dumps(state.get("docking_results") or []),
-            admet_scores=json.dumps(state.get("admet_scores") or {}),
-            resistance_scores=json.dumps(state.get("resistance_scores") or {}),
-            selectivity_scores=json.dumps(state.get("selectivity_scores") or {}),
-            similar_cases=json.dumps(state.get("similar_cases") or []),
+            simulation_results=json.dumps(simulation_results, indent=2),
+            ranked_drugs=json.dumps(ranked_drugs, indent=2),
         )
 
         response = llm.invoke(prompt)
@@ -69,18 +72,6 @@ def run(state: PipelineState) -> PipelineState:
     except Exception as e:
         logger.error(f"Explainability agent failed: {e}")
         state["step_updates"].append(f"ExplainabilityAgent:failed:LLM error: {str(e)[:50]}")
-        # Set minimal recommendation to avoid null
-        state["recommendation"] = {
-            "primary_drug": "Consult specialist",
-            "primary_confidence": 0,
-            "primary_resistance_risk": "unknown",
-            "alternative_drug": "—",
-            "alternative_confidence": 0,
-            "urgency": "immediate",
-            "risk_level": "high",
-            "doctor_summary": "Analysis incomplete. Manual clinical review required.",
-            "patient_summary": "Please contact your doctor for guidance.",
-            "action_required": "Manual review required — AI analysis failed.",
-        }
+        raise ValueError(f"ExplainabilityAgent: Failed to generate LLM recommendation: {str(e)}")
 
     return state

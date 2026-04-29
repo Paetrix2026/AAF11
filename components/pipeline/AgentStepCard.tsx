@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import type { AgentStep } from "@/types";
+import { Check, Loader2, AlertTriangle, Circle, ArrowRight } from "lucide-react";
 
 interface AgentStepCardProps {
   step: AgentStep;
@@ -9,35 +10,35 @@ interface AgentStepCardProps {
 }
 
 const AGENT_COLORS: Record<string, string> = {
-  FetchAgent: "var(--agent-surveillance)",
-  MutationParserAgent: "var(--agent-surveillance)",
-  StructurePrepAgent: "var(--agent-discovery)",
-  DockingAgent: "var(--agent-discovery)",
-  ADMETAgent: "var(--agent-resistance)",
-  ResistanceAgent: "var(--agent-resistance)",
-  SelectivityAgent: "var(--agent-memory)",
-  SimilaritySearchAgent: "var(--agent-memory)",
-  ExplainabilityAgent: "var(--agent-nextstep)",
-  ReportAgent: "var(--agent-nextstep)",
-  PlannerAgent: "var(--text-muted)",
+  FetchAgent: "#10b981", // Emerald
+  MutationParserAgent: "#10b981",
+  StructurePrepAgent: "#3b82f6", // Blue
+  DockingAgent: "#3b82f6",
+  ADMETAgent: "#f59e0b", // Amber
+  ResistanceAgent: "#f59e0b",
+  SelectivityAgent: "#8b5cf6", // Violet
+  SimilaritySearchAgent: "#8b5cf6",
+  ExplainabilityAgent: "#ec4899", // Pink
+  ReportAgent: "#ec4899",
+  PlannerAgent: "#64748b", // Slate
 };
 
 const AGENT_LABELS: Record<string, string> = {
-  FetchAgent: "Surveillance Agent",
-  MutationParserAgent: "Mutation Parser",
-  StructurePrepAgent: "Structure Prep",
-  DockingAgent: "Docking Agent",
-  ADMETAgent: "ADMET Analysis",
-  ResistanceAgent: "Resistance Agent",
-  SelectivityAgent: "Selectivity Agent",
-  SimilaritySearchAgent: "Memory Agent",
-  ExplainabilityAgent: "Next Step Engine",
-  ReportAgent: "Report Generator",
-  PlannerAgent: "Planner",
+  FetchAgent: "NCBI Data Fetch",
+  MutationParserAgent: "Sequence Align",
+  StructurePrepAgent: "3D Folding",
+  DockingAgent: "Binding Analysis",
+  ADMETAgent: "Drug Properties",
+  ResistanceAgent: "Mutation Risk",
+  SelectivityAgent: "Selectivity",
+  SimilaritySearchAgent: "Case Match",
+  ExplainabilityAgent: "Decision Logic",
+  ReportAgent: "Final Synthesis",
+  PlannerAgent: "Orchestration",
 };
 
 export function AgentStepCard({ step, index }: AgentStepCardProps) {
-  const color = AGENT_COLORS[step.agentName] ?? "var(--text-muted)";
+  const color = AGENT_COLORS[step.agentName] ?? "#64748b";
   const label = AGENT_LABELS[step.agentName] ?? step.agentName;
   const isActive = step.status === "running";
   const isComplete = step.status === "complete";
@@ -47,106 +48,59 @@ export function AgentStepCard({ step, index }: AgentStepCardProps) {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: index * 0.1 }}
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: "0.875rem",
-        padding: "0.75rem 1rem",
-        background: isActive ? `${color}08` : "transparent",
-        border: isActive ? `1px solid ${color}30` : "1px solid transparent",
-        borderLeft: `3px solid ${isComplete ? color : isActive ? color : "var(--bg-border)"}`,
-        transition: "all 0.3s",
-      }}
-      className={isActive ? "agent-active" : ""}
+      transition={{ delay: index * 0.05 }}
+      className={`relative group bg-white p-5 rounded-3xl shadow-sm border border-slate-50 transition-all ${
+        isActive ? "ring-2 ring-emerald-500/20 bg-emerald-50/10 shadow-lg shadow-emerald-500/5" : ""
+      }`}
     >
-      {/* Status dot */}
-      <div style={{ paddingTop: "2px", flexShrink: 0 }}>
-        {isFailed ? (
-          <div
-            style={{
-              width: "10px",
-              height: "10px",
-              borderRadius: "50%",
-              background: "var(--risk-critical)",
-            }}
-          />
-        ) : isComplete ? (
-          <div
-            style={{
-              width: "10px",
-              height: "10px",
-              borderRadius: "50%",
-              background: color,
-            }}
-          />
-        ) : isActive ? (
-          <motion.div
-            animate={{ scale: [1, 1.4, 1], opacity: [1, 0.7, 1] }}
-            transition={{ repeat: Infinity, duration: 1.2 }}
-            style={{
-              width: "10px",
-              height: "10px",
-              borderRadius: "50%",
-              background: color,
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              width: "10px",
-              height: "10px",
-              borderRadius: "50%",
-              background: "var(--bg-border)",
-            }}
-          />
-        )}
-      </div>
-
-      {/* Content */}
-      <div style={{ flex: 1 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "0.75rem",
-              color: isActive || isComplete ? color : "var(--text-muted)",
-              letterSpacing: "0.05em",
-            }}
-          >
-            {label}
-          </span>
-          {(isActive || isComplete || isFailed) && (
-            <span
-              style={{
-                fontFamily: "var(--font-display)",
-                fontSize: "0.5625rem",
-                color: "var(--text-muted)",
-                letterSpacing: "0.08em",
-              }}
-            >
-              {isActive ? "RUNNING" : isComplete ? "DONE" : "FAILED"}
-            </span>
+      <div className="flex items-center gap-4">
+        {/* Icon Unit */}
+        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${
+          isActive ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30" : 
+          isComplete ? "bg-slate-900 text-emerald-400" :
+          isFailed ? "bg-red-500 text-white" : "bg-slate-50 text-slate-300"
+        }`}>
+          {isActive ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : isComplete ? (
+            <Check className="w-5 h-5" />
+          ) : isFailed ? (
+            <AlertTriangle className="w-5 h-5" />
+          ) : (
+            <Circle className="w-2 h-2 fill-current" />
           )}
         </div>
-        {step.message && (
-          <p
-            style={{
-              fontFamily: "var(--font-body)",
-              fontSize: "0.8125rem",
-              color: "var(--text-secondary)",
-              marginTop: "0.25rem",
-            }}
-          >
-            {step.message}
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2 mb-0.5">
+            <h4 className={`text-xs font-bold tracking-tight truncate ${
+              isActive ? "text-emerald-600" : "text-slate-900"
+            }`}>
+              {label}
+            </h4>
+            <div className={`w-1.5 h-1.5 rounded-full ${
+               isActive ? "bg-emerald-500 animate-pulse" :
+               isComplete ? "bg-emerald-400" :
+               isFailed ? "bg-red-500" : "bg-slate-100"
+            }`} />
+          </div>
+          <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+            {step.status}
           </p>
-        )}
+        </div>
+      </div>
+
+      {step.message && (
+        <div className="mt-4 pt-4 border-t border-slate-50">
+           <p className="text-[10px] font-semibold text-slate-500 leading-relaxed italic line-clamp-2">
+              "{step.message}"
+           </p>
+        </div>
+      )}
+
+      {/* Detail Arrow (Hover) */}
+      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all">
+         <ArrowRight className="w-3 h-3 text-slate-300" />
       </div>
     </motion.div>
   );

@@ -31,7 +31,10 @@ def score_selectivity(smiles: str, drug_name: str, off_target_data: dict) -> flo
 
 def run(state: PipelineState) -> PipelineState:
     state["step_updates"].append("SelectivityAgent:running:Checking off-target binding...")
-    docking = state.get("docking_results") or []
+    docking = state.get("docking_results")
+    if not docking:
+        raise ValueError("SelectivityAgent: Missing 'docking_results' from DockingAgent - cannot score selectivity without compounds")
+
     off_target_data = load_off_target_data()
 
     selectivity_scores = {}

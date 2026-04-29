@@ -3,9 +3,13 @@ import subprocess
 import tempfile
 import shutil
 import time
+import platform
 from typing import Optional, List, Dict, Tuple
 from dataclasses import dataclass
 from utils.logger import get_logger
+
+# Flag to prevent subprocess windows from spawning on Windows
+CREATE_NO_WINDOW = 0x08000000 if platform.system() == "Windows" else 0
 
 logger = get_logger("docking_utils")
 
@@ -82,15 +86,15 @@ class ProteinPreparer:
 
     def _add_hydrogens(self, input_pdb: str, output_pdb: str) -> None:
         obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
-        subprocess.run([obabel_path, input_pdb, "-O", output_pdb, "-h"], capture_output=True)
+        subprocess.run([obabel_path, input_pdb, "-O", output_pdb, "-h"], capture_output=True, creationflags=CREATE_NO_WINDOW)
         if not os.path.exists(output_pdb):
             shutil.copy(input_pdb, output_pdb)
 
     def _convert_to_pdbqt(self, input_pdb: str, output_pdbqt: str) -> None:
         obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
-        subprocess.run([obabel_path, input_pdb, "-O", output_pdbqt, "-xr"], capture_output=True)
+        subprocess.run([obabel_path, input_pdb, "-O", output_pdbqt, "-xr"], capture_output=True, creationflags=CREATE_NO_WINDOW)
         if not os.path.exists(output_pdbqt):
-             subprocess.run([obabel_path, input_pdb, "-O", output_pdbqt], capture_output=True)
+             subprocess.run([obabel_path, input_pdb, "-O", output_pdbqt], capture_output=True, creationflags=CREATE_NO_WINDOW)
 
 class LigandPreparer:
     """Handles SMILES → PDBQT preparation using RDKit for 3D generation."""
@@ -107,31 +111,26 @@ class LigandPreparer:
                 return False
             
             mol = Chem.AddHs(mol)
-            # Try high-quality embedding first
-            res = AllChem.EmbedMolecule(mol, AllChem.ETKDG(), maxAttempts=1000)
             
-            # Fallback 1: Permissive RDKit embedding
+            # Try ETKDG v3 (correct modern RDKit API)
+            params = AllChem.ETKDGv3()
+            params.randomSeed = 42
+            res = AllChem.EmbedMolecule(mol, params)
+            
+            # Fallback 1: Permissive MMFF
             if res == -1:
-                logger.warning(f"[v3] Standard embedding failed for {smiles}, trying permissive RDKit embedding")
-                res = AllChem.EmbedMolecule(
-                    mol, 
-                    useRandomCoords=True, 
-                    ignoreSmoothingFailures=True,
-                    useExpTorsionAnglePrefs=True,
-                    useBasicKnowledge=True,
-                    randomSeed=42,
-                    maxAttempts=5000
-                )
+                logger.warning(f"ETKDG v3 failed for {smiles}, trying permissive embedding")
+                res = AllChem.EmbedMolecule(mol, randomSeed=42, maxAttempts=5000)
                 
-            # Fallback 2: Open Babel --gen3d (Final effort)
+            # Fallback 2: Open Babel --gen3d
             if res == -1:
-                logger.warning(f"[v3] RDKit failed for {smiles}, using Open Babel fallback")
+                logger.warning(f"RDKit embedding failed for {smiles}, using Open Babel")
                 obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
                 with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as tmp:
                     tmp_pdb = tmp.name
                 
-                cmd = [obabel_path, "-ismi", "-", "-opdb", "-O", tmp_pdb, "--gen3d"]
-                process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                cmd = [obabel_path, "-ismi", "-", "-opdb", "-O", tmp_pdb, "--gen3d", "-h"]
+                process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, creationflags=CREATE_NO_WINDOW)
                 process.communicate(input=smiles)
                 
                 if os.path.exists(tmp_pdb) and os.path.getsize(tmp_pdb) > 0:
@@ -157,8 +156,8 @@ class LigandPreparer:
             
             # 3. Convert PDB to PDBQT with Open Babel
             obabel_path = shutil.which("obabel") or r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
-            cmd = [obabel_path, tmp_pdb, "-O", output_path]
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            cmd = [obabel_path, tmp_pdb, "-O", output_path, "-h"]
+            result = subprocess.run(cmd, capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
             
             # Cleanup
             if os.path.exists(tmp_pdb):
@@ -169,11 +168,11 @@ class LigandPreparer:
             logger.error(f"Ligand prep failed: {e}")
             return False
 
-def run_vina_docking(receptor_path: str, ligand_path: str, output_path: str, center: tuple = (0, 0, 0), size: tuple = (20, 20, 20)) -> Optional[float]:
+def run_vina_docking(receptor_path: str, ligand_path: str, output_path: str, center: tuple = (0, 0, 0), size: tuple = (20, 20, 20), exhaustiveness: int = 8) -> Tuple[Optional[float], Optional[int]]:
     vina_path = shutil.which("vina") or r"C:\tools\vina.EXE"
     if not os.path.exists(vina_path) and shutil.which("vina") is None:
         logger.error("Vina binary not found")
-        return None
+        return None, None
 
     try:
         cmd = [
@@ -187,10 +186,10 @@ def run_vina_docking(receptor_path: str, ligand_path: str, output_path: str, cen
             "--size_x", str(size[0]),
             "--size_y", str(size[1]),
             "--size_z", str(size[2]),
-            "--exhaustiveness", "8"
+            "--exhaustiveness", str(exhaustiveness)
         ]
         
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300, creationflags=CREATE_NO_WINDOW)
         if result.returncode != 0:
             logger.error(f"Vina failed: {result.stderr}")
             return None, None

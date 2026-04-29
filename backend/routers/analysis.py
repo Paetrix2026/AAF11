@@ -79,7 +79,7 @@ async def start_analysis(req: AnalyzeRequest, current_user: dict = Depends(get_c
         doctor_id=current_user["sub"],
         pathogen=req.pathogen,
         variant=req.variant,
-        symptoms=req.symptoms or [],
+        symptoms=req.symptoms if req.symptoms is not None else [],
         pool=pool,
     ))
 
@@ -174,7 +174,10 @@ async def submit_outcome(
         if not run:
             raise HTTPException(status_code=404, detail="Pipeline run not found")
 
-        result_data = run["result"] or {}
+        result_data = run["result"]
+        if not result_data:
+            raise HTTPException(status_code=400, detail="Pipeline run has no result - analysis may have failed")
+
         recommended_drug = result_data.get("primaryDrug") if isinstance(result_data, dict) else None
 
         row = await conn.fetchrow(

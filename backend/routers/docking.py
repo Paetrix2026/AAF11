@@ -44,6 +44,7 @@ async def perform_docking(
     size_x: float = Form(30.0),
     size_y: float = Form(30.0),
     size_z: float = Form(30.0),
+    exhaustiveness: int = Form(8),
     pdb_file: Optional[UploadFile] = File(None)
 ):
     try:
@@ -93,7 +94,8 @@ async def perform_docking(
                     affinity, seed = run_vina_docking(
                         actual_receptor_path, ligand_pdbqt, output_pdbqt,
                         center=(center_x, center_y, center_z),
-                        size=(size_x, size_y, size_z)
+                        size=(size_x, size_y, size_z),
+                        exhaustiveness=exhaustiveness
                     )
                     results.append({
                         "name": compound["name"],
