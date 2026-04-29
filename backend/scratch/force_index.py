@@ -4,7 +4,9 @@ import pandas as pd
 from pathlib import Path
 
 # Paths
-DATA_DIR = Path("backend/data/cosmic")
+# This script is in backend/scratch/, so data is at ../data/
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / "data" / "cosmic"
 DB_PATH = DATA_DIR / "cosmic_index.db"
 TSV_PATH = DATA_DIR / "cmc_export.tsv"
 
