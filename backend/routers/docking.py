@@ -76,6 +76,12 @@ async def perform_docking(
             protein_prep = ProteinPreparer()
             await protein_prep.prepare(pdb_content, pdb_id or "uploaded", tmpdir)
             actual_receptor_path = os.path.join(tmpdir, f"{pdb_id or 'uploaded'}_receptor.pdbqt")
+            
+            # Use centered PDB for frontend viewer to match docking coordinates
+            centered_pdb_path = os.path.join(tmpdir, f"{pdb_id or 'uploaded'}_centered.pdb")
+            if os.path.exists(centered_pdb_path):
+                with open(centered_pdb_path, "r") as f:
+                    pdb_content = f.read()
 
             # 3. Docking (Single or Screening)
             results = []
@@ -92,17 +98,53 @@ async def perform_docking(
                 
                 try:
                     preparer.prepare(compound["smiles"], ligand_pdbqt)
-                    affinity, seed = run_vina_docking(
-                        actual_receptor_path, ligand_pdbqt, output_pdbqt,
+                    
+                    # Run Docking via threadpool to avoid blocking event loop
+                    from starlette.concurrency import run_in_threadpool
+                    affinity, seed = await run_in_threadpool(
+                        run_vina_docking,
+                        receptor_path=actual_receptor_path,
+                        ligand_path=ligand_pdbqt,
+                        output_path=output_pdbqt,
                         center=(center_x, center_y, center_z),
                         size=(size_x, size_y, size_z),
                         exhaustiveness=exhaustiveness
                     )
+
+                    # Integrated Intelligence Scoring
+                    from agents.ResistanceAgent import score_resistance, load_resistance_data
+                    from agents.DecisionAgent import DecisionAgent
+                    
+                    resistance_data = load_resistance_data()
+                    typical_mutations = []
+                    try:
+                        profiles_path = os.path.join(os.path.dirname(__file__), "..", "data", "structures", "curated_profiles.json")
+                        with open(profiles_path) as f:
+                            profiles = json.load(f)
+                            typical_mutations = profiles.get(target, {}).get("typical_resistance_mutations", [])
+                    except:
+                        pass
+                    
+                    resistance = score_resistance(typical_mutations, compound["name"], resistance_data)
+                    
+                    # Decision Scoring
+                    decision_agent = DecisionAgent()
+                    decision_data = {
+                        "name": compound["name"],
+                        "binding": affinity if affinity is not None else -4.0,
+                        "resistance": resistance,
+                        "patient_risk": 0.5 # Default baseline
+                    }
+                    ranked_results = decision_agent.run([decision_data])
+                    decision_score = ranked_results[0]["decision_score"] if ranked_results else 0
+
                     results.append({
                         "name": compound["name"],
                         "smiles": compound["smiles"],
                         "affinity": affinity,
                         "seed": seed,
+                        "resistance": resistance,
+                        "decision_score": decision_score,
                         "status": "success",
                         "ligand_pdb": open(ligand_pdbqt, "r").read() if os.path.exists(ligand_pdbqt) else None
                     })

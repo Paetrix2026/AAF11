@@ -46,7 +46,7 @@ def run(state: PipelineState) -> PipelineState:
         raise ValueError("ExplainabilityAgent: Missing 'ranked_drugs' - cannot generate recommendations without ranked drugs")
 
     try:
-        llm = get_llm()
+        llm = get_llm(provider="gemini")
         prompt = RECOMMENDATION_PROMPT.format(
             pathogen=state["pathogen"],
             mutations=json.dumps(state.get("mutations") or []),
