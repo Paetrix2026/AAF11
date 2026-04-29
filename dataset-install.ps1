@@ -36,7 +36,7 @@ while (!$success -and $attempts -lt $maxAttempts) {
         }
     }
 
-    Write-Host "[+] Attempt $attempts of $maxAttempts: Downloading 1.7GB dataset..." -ForegroundColor Cyan
+    Write-Host "[+] Attempt $($attempts) of $($maxAttempts): Downloading 1.7GB dataset..." -ForegroundColor Cyan
     try {
         cd backend
         Write-Host "    [Step 1] Synchronizing download tools..." -ForegroundColor Gray
