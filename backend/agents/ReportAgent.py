@@ -14,9 +14,7 @@ def run(state: PipelineState) -> PipelineState:
     if not recommendation:
         raise ValueError("ReportAgent: Missing 'recommendation'. ExplainabilityAgent must complete successfully.")
 
-    sim_results = state.get("simulation_results")
-    if not sim_results:
-        raise ValueError("ReportAgent: Missing 'simulation_results'. Simulation data is required for the clinical report.")
+    sim_results = state.get("simulation_results") or []
 
     # Extract details for the primary drug if possible (case-insensitive match)
     primary_drug_name = recommendation.get("primary_drug", "")
