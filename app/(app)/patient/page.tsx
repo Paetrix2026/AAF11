@@ -48,7 +48,7 @@ export default function PatientDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50">
+      <div className="flex items-center justify-center h-full bg-transparent">
         <div className="flex flex-col items-center gap-4 text-slate-400">
           <Activity className="w-8 h-8 animate-spin text-emerald-500" />
           <p className="text-[10px] font-bold uppercase tracking-widest">Initialising Patient Node...</p>
@@ -58,7 +58,7 @@ export default function PatientDashboard() {
   }
 
   return (
-    <div className="p-6 lg:p-10 max-w-[1600px] mx-auto space-y-10 min-h-screen">
+    <div className="p-6 lg:p-10 max-w-[1600px] mx-auto space-y-10">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">

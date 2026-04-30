@@ -7,7 +7,7 @@ export default function PatientMedicationsPage() {
   const headerLabelStyle = "text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-1";
 
   return (
-    <div className="p-6 lg:p-10 max-w-[1200px] mx-auto space-y-10 min-h-screen">
+    <div className="p-6 lg:p-10 max-w-[1200px] mx-auto space-y-10">
       {/* Header */}
       <div className="space-y-1">
         <div className="flex items-center gap-2 text-emerald-500 font-bold text-[10px] uppercase tracking-[0.3em]">

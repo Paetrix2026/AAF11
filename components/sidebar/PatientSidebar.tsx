@@ -24,8 +24,8 @@ import { Input } from "@/components/ui/input";
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/patient" },
-  { icon: Pill, label: "Medications", href: "/patient/medications" },
-  { icon: Bell, label: "Health Alerts", href: "/patient/alerts" },
+  { icon: Activity, label: "Medication Protocol", href: "/patient/medications" },
+  { icon: ShieldCheck, label: "Bio-Security Alerts", href: "/patient/alerts" },
   { icon: Settings, label: "Account Config", href: "/patient/profile" },
 ];
 
@@ -58,7 +58,7 @@ export function PatientSidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-[300px] bg-white border-r border-slate-100 flex flex-col z-[100] hidden lg:flex">
+    <aside className="w-[300px] bg-white border-r border-slate-100 flex flex-col shrink-0">
       {/* Brand Header */}
       <div className="p-8 pb-10">
         <div className="flex items-center gap-3">
@@ -98,13 +98,17 @@ export function PatientSidebar() {
         })}
       </nav>
 
-      {/* Security Link Section */}
-      <div className="px-10 mt-12 mb-8">
-        <div className="p-6 bg-slate-50 border border-slate-100 rounded-[2rem] space-y-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Send className="w-3.5 h-3.5 text-emerald-500" />
-            <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">Intelligence Link</span>
-          </div>
+      {/* Intelligence Link Section */}
+      <div className="flex-1 flex flex-col min-h-0 mt-12 px-6">
+        <div className="px-4 mb-4 flex items-center justify-between">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] opacity-50">
+            Intelligence Link
+          </span>
+          <Send className="w-3.5 h-3.5 text-slate-300" />
+        </div>
+        
+        <div className="px-4">
+          <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-3">
           
           {user?.telegramHandle ? (
             <div className="flex items-center gap-2 py-1">
@@ -130,6 +134,7 @@ export function PatientSidebar() {
           )}
         </div>
       </div>
+    </div>
 
       {/* Footer / User Profile */}
       <div className="p-6 mt-auto border-t border-slate-50">
