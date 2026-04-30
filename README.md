@@ -1,6 +1,6 @@
 # 🧬 Healynx — Next-Gen Antiviral AI Pipeline
 
-Healynx is a powerful, multi-agent orchestrator designed to accelerate antiviral discovery and pathogen analysis. By integrating genetic sequence retrieval, molecular docking, and AI-driven explainability, Healynx provides clinicians and researchers with rapid, data-backed recommendations for emerging viral threats.
+Healynx is a powerful, multi-agent orchestrator designed to accelerate antiviral discovery and pathogen analysis. By integrating genetic sequence retrieval, molecular docking, and AI-driven explainability, Healynx provides clinicians and researchers with rapid, data-backed recommendations for emerging viral threats. NOICE.
 
 ---
 
