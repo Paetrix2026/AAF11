@@ -13,12 +13,8 @@ CREATE_NO_WINDOW = 0x08000000 if platform.system() == "Windows" else 0
 
 logger = get_logger("docking_utils")
 
-SCREENING_COMPOUNDS = [
-    {"name": "Oseltamivir", "smiles": "CCOC(=O)C1=C[C@@H](OC(CC)CC)[C@H](NC(C)=O)[C@@H](N)C1"},
-    {"name": "Zanamivir", "smiles": "CC(=O)N[C@@H]([C@H](O)[C@H](O)CO)[C@@H]1OC(C[C@H]1N=C(N)N)=C(O)O"},
-    {"name": "Baloxavir", "smiles": "CC1=C(C=CC=C1)OC2=CC3=C(C=C2)N4CC(C(C4=O)O3)C5=CC=C(C=C5)F"},
-    {"name": "Remdesivir", "smiles": "CCC(CC)COC(=O)[C@H](C)NP(=O)(OC[C@H]1[C@@H]([C@@H]([C@](O1)(C#N)C2=CC=C3N2N=CN=C3N)O)O)OC4=CC=CC=C4"}
-]
+# No hardcoded screening compounds - always use dynamic discovery
+SCREENING_COMPOUNDS = []
 
 @dataclass
 class DockingResult:
@@ -102,14 +98,16 @@ class ProteinPreparer:
                     f.write(line)
 
     def _add_hydrogens(self, input_pdb: str, output_pdb: str) -> None:
-        obabel = shutil.which("obabel")
-        if not obabel: raise RuntimeError("STRICT_FAIL: 'obabel' not found in PATH.")
+        from utils.environment import get_binary_path
+        obabel = get_binary_path("obabel")
+        if not obabel: raise RuntimeError("STRICT_FAIL: 'obabel' not found in PATH or standard fallbacks.")
         result = subprocess.run([obabel, input_pdb, "-O", output_pdb, "-h"], capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
         if result.returncode != 0 or not os.path.exists(output_pdb):
             raise RuntimeError(f"STRICT_FAIL: obabel hydrogen addition failed.\nError: {result.stderr}")
 
     def _convert_to_pdbqt(self, input_pdb: str, output_pdbqt: str) -> None:
-        obabel = shutil.which("obabel")
+        from utils.environment import get_binary_path
+        obabel = get_binary_path("obabel")
         result = subprocess.run([obabel, input_pdb, "-O", output_pdbqt, "-xr"], capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
         if result.returncode != 0 or not os.path.exists(output_pdbqt):
              raise RuntimeError(f"STRICT_FAIL: obabel PDBQT conversion failed.\nError: {result.stderr}")
@@ -121,20 +119,28 @@ class LigandPreparer:
         from rdkit import Chem
         from rdkit.Chem import AllChem
         
+        if not smiles or not isinstance(smiles, str):
+            logger.error("LigandPreparer: SMILES is None or invalid")
+            return False
+
         mol = Chem.MolFromSmiles(smiles)
         if mol is None: raise RuntimeError(f"STRICT_FAIL: RDKit parse failed: {smiles}")
         
         mol = Chem.AddHs(mol)
         params = AllChem.ETKDGv3()
         params.randomSeed = 42
-        params.maxAttempts = 10000  # Increased for complex rings like Baloxavir
+        # Use try/except for specific params that vary by RDKit version
+        try:
+            params.maxAttempts = 10000
+        except AttributeError:
+            pass
         params.useRandomCoords = True 
-        params.useBasicKnowledge = True # Use chemical knowledge for ring systems
+        params.useBasicKnowledge = True
         
         res = AllChem.EmbedMolecule(mol, params)
         if res == -1:
-            # Fallback to older but sometimes more robust ETKDG
-            res = AllChem.EmbedMolecule(mol, maxAttempts=5000, useRandomCoords=True, randomSeed=42)
+            # Fallback to standard embedding without specific params object
+            res = AllChem.EmbedMolecule(mol, randomSeed=42, useRandomCoords=True)
             
         if res == -1:
             raise RuntimeError(f"STRICT_FAIL: RDKit 3D embedding failed for {smiles} after 15000 combined attempts. This molecule is too rigid/complex for standard conformer search.")
@@ -145,7 +151,8 @@ class LigandPreparer:
         except:
             AllChem.UFFOptimizeMolecule(mol)
         
-        obabel = shutil.which("obabel")
+        from utils.environment import get_binary_path
+        obabel = get_binary_path("obabel")
         with tempfile.TemporaryDirectory() as tmpdir:
             sdf_path = os.path.join(tmpdir, "ligand.sdf")
             writer = Chem.SDWriter(sdf_path)
@@ -164,12 +171,13 @@ def run_vina_docking(
     ligand_path: str,
     output_path: str,
     center: tuple = (0, 0, 0),
-    size: tuple = (20, 20, 20),
+    size: tuple = (30, 30, 30),
     exhaustiveness: int = 8
 ) -> Tuple[float, int]:
     
-    vina = shutil.which("vina")
-    if not vina: raise RuntimeError("STRICT_FAIL: 'vina' not found in PATH.")
+    from utils.environment import get_binary_path
+    vina = get_binary_path("vina")
+    if not vina: raise RuntimeError("STRICT_FAIL: 'vina' not found in PATH or standard fallbacks.")
 
     cmd = [
         vina,
@@ -194,7 +202,10 @@ def run_vina_docking(
 
     affinity, seed = parse_vina_output(result.stdout)
     if affinity is None:
-        raise RuntimeError(f"STRICT_FAIL: Vina parsing failed (Affinity 0 or not found).\nOutput:\n{result.stdout}")
+        raise RuntimeError(f"STRICT_FAIL: Vina parsing failed. No affinity score found in output. Check if ligand/receptor files are valid.\nOutput:\n{result.stdout}")
+        
+    if affinity > 0:
+        logger.warning(f"Vina: Positive affinity detected ({affinity}). This indicates a strong steric clash.")
         
     return affinity, seed
 
@@ -207,12 +218,12 @@ def parse_vina_output(stdout: str) -> Tuple[Optional[float], Optional[int]]:
             except: pass
         
         tokens = line.split()
+        # Vina output table lines start with an integer mode number
         if tokens and tokens[0].isdigit() and len(tokens) >= 2:
             try:
                 val = float(tokens[1])
-                # Accepting any real negative interaction now that we centered the protein
-                if -25 < val < 0.00001:
-                    affinity = val
-                    break
+                # Accepting any real numeric value. Positive values indicate steric clashes.
+                affinity = val
+                break
             except: pass
     return affinity, seed

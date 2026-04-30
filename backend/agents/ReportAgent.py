@@ -9,18 +9,18 @@ def run(state: PipelineState) -> PipelineState:
     """Generate final structured report for Stage 3."""
     state["step_updates"].append("ReportAgent:running:Generating final report...")
 
-    # Validate required fields
+    # Ensure real data for the report
     recommendation = state.get("recommendation")
     if not recommendation:
-        raise ValueError("ReportAgent: Missing 'recommendation' from previous stage - pipeline state incomplete")
+        raise ValueError("ReportAgent: Missing 'recommendation'. ExplainabilityAgent must complete successfully.")
 
     sim_results = state.get("simulation_results")
     if not sim_results:
-        raise ValueError("ReportAgent: Missing 'simulation_results' from SimulationAgent - cannot generate report")
+        raise ValueError("ReportAgent: Missing 'simulation_results'. Simulation data is required for the clinical report.")
 
-    # Extract details for the primary drug if possible
+    # Extract details for the primary drug if possible (case-insensitive match)
     primary_drug_name = recommendation.get("primary_drug", "")
-    primary_data = next((d for d in sim_results if d.get("name") == primary_drug_name), {})
+    primary_data = next((d for d in sim_results if d.get("name", "").lower() == primary_drug_name.lower()), {})
 
     report = {
         "primaryDrug": primary_drug_name or "",
@@ -36,7 +36,8 @@ def run(state: PipelineState) -> PipelineState:
         "resistanceScores": state.get("resistance_scores") or {},
         "similarCases": state.get("similar_cases") or [],
         "dockingResults": state.get("docking_results") or [],
-        "admetScores": state.get("admet_scores") or {},
+        "admetScores": state.get("admet_scores", {}).get(next((k for k in state.get("admet_scores", {}).keys() if k.lower() == primary_drug_name.lower()), primary_drug_name), {}),
+        "smiles": next((d.get("smiles") for d in state.get("docking_results", []) if d.get("name", "").lower() == primary_drug_name.lower()), ""),
 
         # Stage 2 Metrics
         "decisionScore": primary_data.get("decision_score", 0),
@@ -49,6 +50,6 @@ def run(state: PipelineState) -> PipelineState:
         "mutations": state.get("mutations") or [],
     }
 
-    state["report"] = json.dumps(report)
+    state["report"] = report
     state["step_updates"].append("ReportAgent:complete:Report ready")
     return state

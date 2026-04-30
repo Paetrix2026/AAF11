@@ -18,6 +18,8 @@ const AGENT_COLORS: Record<string, string> = {
   ResistanceAgent: "#f59e0b",
   SelectivityAgent: "#8b5cf6", // Violet
   SimilaritySearchAgent: "#8b5cf6",
+  DecisionAgent: "#8b5cf6",
+  SimulationAgent: "#8b5cf6",
   ExplainabilityAgent: "#ec4899", // Pink
   ReportAgent: "#ec4899",
   PlannerAgent: "#64748b", // Slate
@@ -32,6 +34,8 @@ const AGENT_LABELS: Record<string, string> = {
   ResistanceAgent: "Mutation Risk",
   SelectivityAgent: "Selectivity",
   SimilaritySearchAgent: "Case Match",
+  DecisionAgent: "Therapeutic Ranking",
+  SimulationAgent: "Clinical Simulation",
   ExplainabilityAgent: "Decision Logic",
   ReportAgent: "Final Synthesis",
   PlannerAgent: "Orchestration",

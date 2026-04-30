@@ -1,53 +1,42 @@
-import httpx
+import json
+import os
 from typing import List, Dict
+from utils.llm_router import get_llm
 
 async def fetch_uniprot_search(query: str) -> List[Dict]:
-    """Fetch search results from UniProt."""
-    url = "https://rest.uniprot.org/uniprotkb/search"
-    params = {
-        "query": query,
-        "format": "json",
-        "size": 5
-    }
-    
-    async with httpx.AsyncClient(timeout=5.0) as client:
-        try:
-            r = await client.get(url, params=params)
-            if r.status_code != 200:
-                return []
-            
-            results = r.json().get("results", [])
-            formatted = []
-            for item in results:
-                try:
-                    acc = item.get("primaryAccession")
-                    # Safely get protein name
-                    desc = item.get("proteinDescription", {})
-                    # Try recommended name, then submission names
-                    name_obj = desc.get("recommendedName") or desc.get("submissionNames", [{}])[0]
-                    name = name_obj.get("fullName", {}).get("value", "Unknown Protein")
-                    
-                    # Safely get gene name
-                    gene_list = item.get("genes", [])
-                    gene = gene_list[0].get("geneName", {}).get("value", "N/A") if gene_list else "N/A"
-                    
-                    formatted.append({
-                        "id": acc,
-                        "name": f"{name} ({gene})",
-                        "source": "online",
-                        "type": "protein",
-                        "description": f"UniProt Accession: {acc}",
-                        "metadata": {
-                            "organism": item.get("organism", {}).get("scientificName"),
-                            "gene": gene
-                        }
-                    })
-                except Exception as e:
-                    print(f"WARNING: Skipping one UniProt result due to parsing error: {e}")
-                    continue
-            
-            print(f"SUCCESS: UniProt returned {len(formatted)} valid results")
-            return formatted
-        except Exception as e:
-            print(f"ERROR: UniProt fetch failed: {e}")
-            return []
+    """
+    Search for high-impact clinical mutations using AI.
+    Returns a list of mutations with the format 'Disease Mutation'.
+    """
+    try:
+        llm = get_llm(provider="groq")
+        prompt = f"""Search for high-impact clinical mutations related to '{query}'. 
+        Return a JSON array of up to 5 objects. Each object must have:
+        - id: a unique identifier (e.g. disease_mutation)
+        - name: the disease and mutation combined (e.g. "Alzheimer's APP_A673V")
+        - disease: the name of the disease/pathogen only
+        - mutation: the mutation signature only (e.g. "A673V")
+        - description: a short clinical description
+        
+        Respond ONLY with the JSON array."""
+        
+        response = await llm.ainvoke(prompt)
+        results = json.loads(response.content.strip().replace("```json", "").replace("```", ""))
+        
+        formatted = []
+        for r in results:
+            formatted.append({
+                "id": r.get("id"),
+                "name": r.get("name"),
+                "source": "online",
+                "type": "mutation",
+                "description": r.get("description"),
+                "metadata": {
+                    "disease": r.get("disease"),
+                    "mutation": r.get("mutation")
+                }
+            })
+        return formatted
+    except Exception as e:
+        print(f"ERROR: AI Mutation search failed: {e}")
+        return []

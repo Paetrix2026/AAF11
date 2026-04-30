@@ -10,8 +10,9 @@ def print_health_report() -> None:
         "mafft": "MAFFT (sequence alignment)",
     }
 
+    from utils.environment import get_binary_path
     for binary, description in binaries.items():
-        path = shutil.which(binary)
+        path = get_binary_path(binary)
         if path:
             print(f"  [FOUND] {description}: {path}")
         else:

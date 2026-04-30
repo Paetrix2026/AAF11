@@ -3,7 +3,8 @@ from typing import Optional
 
 
 def find_binary(name: str) -> Optional[str]:
-    return shutil.which(name)
+    from utils.environment import get_binary_path
+    return get_binary_path(name)
 
 
 def check_vina() -> bool:

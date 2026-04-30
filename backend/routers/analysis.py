@@ -46,6 +46,13 @@ class APIResponse(BaseModel):
 @router.post("/analyze", response_model=APIResponse)
 async def start_analysis(req: AnalyzeRequest, current_user: dict = Depends(get_current_user)):
     run_id = str(uuid.uuid4())
+    
+    # Validate UUID format
+    try:
+        uuid.UUID(req.patientId)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid patient ID format")
+
     pool = await get_pool()
 
     # Verify patient exists
@@ -83,7 +90,11 @@ async def start_analysis(req: AnalyzeRequest, current_user: dict = Depends(get_c
         pool=pool,
     ))
 
-    return APIResponse(success=True, data={"runId": run_id}, message="Pipeline started")
+    return {
+        "success": True,
+        "data": {"runId": run_id},
+        "message": "Analysis started",
+    }
 
 
 async def run_pipeline_task(
@@ -94,130 +105,87 @@ async def run_pipeline_task(
     variant: Optional[str],
     symptoms: List[str],
     pool,
-) -> None:
-    """Run the LangGraph pipeline asynchronously."""
+):
     try:
-        graph = build_pipeline_graph()
-
+        app = build_pipeline_graph()
         initial_state: PipelineState = {
             "patient_id": patient_id,
             "pathogen": pathogen,
             "variant": variant,
             "symptoms": symptoms,
-            "sequences": None,
-            "mutations": None,
+            "sequences": [],
+            "mutations": [],
             "structure_pdb": None,
-            "docking_results": None,
-            "admet_scores": None,
-            "resistance_scores": None,
-            "selectivity_scores": None,
-            "similar_cases": None,
-            "recommendation": None,
-            "plain_summary": None,
-            "urgency": None,
-            "risk_level": None,
-            "report": None,
+            "structure_pdbqt": None,
+            "docking_results": [],
+            "admet_scores": {},
+            "resistance_scores": {},
+            "selectivity_scores": {},
+            "similar_cases": [],
+            "recommendation": {},
             "step_updates": [],
+            "report": None,
             "run_id": run_id,
-            "error": None,
         }
 
-        # Fetch similar cases before running graph (async DB call)
-        similar_cases = await fetch_similar_cases(patient_id, pathogen, pool)
-        initial_state["similar_cases"] = similar_cases
+        final_state = initial_state
+        async for state in app.astream(initial_state, stream_mode="values"):
+            if state:
+                final_state = state
+                # Update memory store for SSE
+                if "step_updates" in state and state["step_updates"]:
+                    # Always sync the entire list to the in-memory run
+                    _runs[run_id]["steps"] = state["step_updates"]
+                    if state["step_updates"]:
+                        _runs[run_id]["message"] = state["step_updates"][-1]
 
-        # Run asynchronously
-        final_state = await graph.ainvoke(initial_state)
-
-        # Parse report
-        result = json.loads(final_state.get("report") or "{}")
-
-        # Store step updates and result
-        _runs[run_id]["steps"] = final_state.get("step_updates", [])
-        _runs[run_id]["result"] = result
-        _runs[run_id]["status"] = "complete"
+        _runs[run_id]["status"] = "completed"
+        _runs[run_id]["result"] = final_state.get("report") or final_state
 
         # Update DB
         async with pool.acquire() as conn:
             await conn.execute(
-                "UPDATE pipeline_runs SET status='complete', result=$1::jsonb WHERE id=$2::uuid",
-                json.dumps(result), run_id,
+                "UPDATE pipeline_runs SET status = 'completed', result = $1::jsonb WHERE id = $2::uuid",
+                json.dumps(final_state),
+                run_id,
             )
+
     except Exception as e:
-        logger.error(f"Pipeline task failed for run {run_id}: {e}")
+        logger.error(f"Pipeline error for run {run_id}: {str(e)}")
         _runs[run_id]["status"] = "failed"
-        _runs[run_id]["error"] = str(e)
+        _runs[run_id]["message"] = str(e)
+        
         async with pool.acquire() as conn:
             await conn.execute(
-                "UPDATE pipeline_runs SET status='failed' WHERE id=$1::uuid",
+                "UPDATE pipeline_runs SET status = 'failed' WHERE id = $1::uuid",
                 run_id,
             )
 
 
-@router.post("/outcome", response_model=APIResponse)
-async def submit_outcome(
-    data: dict,
-    current_user: dict = Depends(get_current_user),
-):
-    pool = await get_pool()
-    run_id = data.get("runId")
-    outcome = data.get("outcome")
-    notes = data.get("notes", "")
-
-    if not run_id or not outcome:
-        raise HTTPException(status_code=400, detail="runId and outcome are required")
-
-    async with pool.acquire() as conn:
-        run = await conn.fetchrow(
-            "SELECT patient_id, result FROM pipeline_runs WHERE id=$1::uuid", run_id
-        )
-        if not run:
-            raise HTTPException(status_code=404, detail="Pipeline run not found")
-
-        result_data = run["result"]
-        if not result_data:
-            raise HTTPException(status_code=400, detail="Pipeline run has no result - analysis may have failed")
-
-        recommended_drug = result_data.get("primaryDrug") if isinstance(result_data, dict) else None
-
-        row = await conn.fetchrow(
-            """
-            INSERT INTO outcomes (run_id, patient_id, recommended_drug, outcome, notes)
-            VALUES ($1::uuid, $2::uuid, $3, $4, $5)
-            RETURNING id
-            """,
-            run_id, str(run["patient_id"]), recommended_drug, outcome, notes,
-        )
-
-    return APIResponse(success=True, data={"id": str(row["id"])}, message="Outcome recorded")
-
-
-@router.get("/pipeline/runs", response_model=APIResponse)
-async def get_pipeline_runs(
-    patient_id: Optional[str] = None,
-    current_user: dict = Depends(get_current_user),
-):
-    pool = await get_pool()
-    async with pool.acquire() as conn:
-        if patient_id:
-            rows = await conn.fetch(
-                "SELECT * FROM pipeline_runs WHERE patient_id=$1::uuid ORDER BY created_at DESC LIMIT 20",
-                patient_id,
+@router.get("/status/{run_id}", response_model=APIResponse)
+async def get_run_status(run_id: str):
+    if run_id not in _runs:
+        # Check DB if not in memory
+        pool = await get_pool()
+        async with pool.acquire() as conn:
+            run = await conn.fetchrow(
+                "SELECT * FROM pipeline_runs WHERE id = $1::uuid", run_id
             )
-        else:
-            rows = await conn.fetch(
-                "SELECT * FROM pipeline_runs WHERE doctor_id=$1::uuid ORDER BY created_at DESC LIMIT 20",
-                current_user["sub"],
-            )
+            if not run:
+                raise HTTPException(status_code=404, detail="Run not found")
+            return {
+                "success": True,
+                "data": {
+                    "status": run["status"],
+                    "result": json.loads(run["result"]) if run["result"] else None,
+                },
+                "message": "Run found in database",
+            }
 
-    runs = []
-    for row in rows:
-        r = dict(row)
-        r["id"] = str(r["id"])
-        r["patientId"] = str(r.pop("patient_id"))
-        r["doctorId"] = str(r.pop("doctor_id"))
-        if r.get("created_at"):
-            r["createdAt"] = r.pop("created_at").isoformat()
-        runs.append(r)
+    return {
+        "success": True,
+        "data": _runs[run_id],
+        "message": "Run found in memory",
+    }
 
-    return APIResponse(success=True, data=runs, message="OK")
+

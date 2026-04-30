@@ -36,17 +36,19 @@ Respond ONLY with valid JSON, no other text."""
 def run(state: PipelineState) -> PipelineState:
     state["step_updates"].append("ExplainabilityAgent:running:Synthesizing recommendation with AI...")
 
-    # Validate required fields
+    # Ensure we have real data from previous agents
     simulation_results = state.get("simulation_results")
-    if not simulation_results:
-        raise ValueError("ExplainabilityAgent: Missing 'simulation_results' - cannot generate recommendations without simulation data")
-
     ranked_drugs = state.get("ranked_drugs")
+
     if not ranked_drugs:
-        raise ValueError("ExplainabilityAgent: Missing 'ranked_drugs' - cannot generate recommendations without ranked drugs")
+        raise ValueError("ExplainabilityAgent: Missing 'ranked_drugs'. Ensure Docking and Ranking agents are configured correctly.")
+
+    if not simulation_results:
+        raise ValueError("ExplainabilityAgent: Missing 'simulation_results'. Ensure Simulation/Outcome agent has executed.")
 
     try:
-        llm = get_llm(provider="gemini")
+        # Prioritize Vertex AI for enterprise-grade synthesis
+        llm = get_llm(provider="vertex")
         prompt = RECOMMENDATION_PROMPT.format(
             pathogen=state["pathogen"],
             mutations=json.dumps(state.get("mutations") or []),
@@ -54,7 +56,13 @@ def run(state: PipelineState) -> PipelineState:
             ranked_drugs=json.dumps(ranked_drugs, indent=2),
         )
 
-        response = llm.invoke(prompt)
+        try:
+            response = llm.invoke(prompt)
+        except Exception as gemini_err:
+            logger.warning(f"Gemini failed, falling back to Groq: {gemini_err}")
+            llm = get_llm(provider="groq")
+            response = llm.invoke(prompt)
+
         content = response.content.strip()
 
         # Strip markdown code fences if present

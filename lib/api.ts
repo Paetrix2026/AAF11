@@ -52,9 +52,17 @@ export const runPipeline = (payload: PipelineInput) =>
     body: JSON.stringify(payload),
   });
 
-export const streamPipeline = (runId: string, onStep: (step: string) => void) => {
+export const streamPipeline = (runId: string, onStep: (data: string) => void) => {
   const es = new EventSource(`${BASE_URL}/api/stream/${runId}`);
+  
+  // Generic message listener (for "done" status)
   es.onmessage = (e) => onStep(e.data);
+  
+  // Named update listener (for "agent" status)
+  es.addEventListener("update", (e) => {
+    onStep(e.data);
+  });
+  
   return es;
 };
 

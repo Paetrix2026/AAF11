@@ -47,7 +47,7 @@ export function PipelineOutput({ result }: PipelineOutputProps) {
               <div className="flex flex-wrap items-center gap-3">
                  <div className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-2xl font-bold text-xs shadow-lg shadow-slate-900/20">
                     <TrendingUp className="w-4 h-4 text-emerald-400" />
-                    {result.primaryConfidence}% Confidence
+                    {Math.round(result.primaryConfidence || 0)}% Confidence
                  </div>
                  <RiskBadge level={result.riskLevel} />
                  <UrgencyIndicator urgency={result.urgency} />
@@ -62,30 +62,63 @@ export function PipelineOutput({ result }: PipelineOutputProps) {
           </div>
         </motion.div>
 
-        {/* SIDE BENTO: Action & Risk */}
         <motion.div 
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
-          className="lg:col-span-4 space-y-8"
+          className="lg:col-span-4"
         >
-          <div className={`${cardStyle} bg-slate-900 text-white border-none shadow-slate-900/20 h-full flex flex-col justify-between`}>
-             <div>
-                <div className="flex items-center gap-2 text-emerald-400 text-[10px] font-bold uppercase tracking-widest mb-6">
+          <div className={`${cardStyle} h-full flex flex-col justify-between relative overflow-hidden group`}>
+             <div className="absolute top-0 right-0 w-32 h-32 bg-slate-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+             
+             <div className="relative z-10 flex-1">
+                <div className="flex items-center gap-2 text-emerald-500 text-[10px] font-bold uppercase tracking-widest mb-4">
                    <AlertCircle className="w-4 h-4" /> Required Action
                 </div>
-                <p className="text-2xl font-bold leading-tight">
+                
+                {/* Molecular Structure Visualization */}
+                <div className="my-6 aspect-square w-full bg-slate-50/50 rounded-[2rem] border border-slate-100 flex items-center justify-center relative overflow-hidden p-6 group-hover:bg-white transition-all">
+                   {result.smiles ? (
+                     <img 
+                       src={`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/${encodeURIComponent(result.smiles)}/PNG`} 
+                       alt="Molecular Structure"
+                       onError={(e) => {
+                         const target = e.target as HTMLImageElement;
+                         if (!target.src.includes('cactus')) {
+                            target.src = `https://cactus.nci.nih.gov/chemical/structure/${encodeURIComponent(result.smiles || '')}/image`;
+                         }
+                       }}
+                       className="max-w-full max-h-full mix-blend-multiply opacity-80 group-hover:opacity-100 transition-all scale-110 group-hover:scale-125 duration-700"
+                     />
+                   ) : (
+                     <div className="flex flex-col items-center gap-2 text-slate-300">
+                        <Microscope className="w-8 h-8 opacity-20" />
+                        <span className="text-[8px] font-bold uppercase tracking-widest">Structure Data Pending</span>
+                     </div>
+                   )}
+                   <div className="absolute bottom-4 right-4 p-2 bg-white/80 backdrop-blur-md rounded-lg border border-slate-100 opacity-0 group-hover:opacity-100 transition-all">
+                      <Binary className="w-3 h-3 text-emerald-500" />
+                   </div>
+                </div>
+
+                <p className="text-xl font-bold leading-tight text-slate-900">
                    {result.actionRequired || "Maintain current observation sequence."}
                 </p>
              </div>
-             <div className="mt-10 pt-10 border-t border-white/10 space-y-4">
+
+             <div className="mt-8 pt-8 border-t border-slate-50 space-y-4">
                 <div className="flex justify-between items-center text-xs">
                    <span className="text-slate-400 font-bold uppercase tracking-wider">Resistance Risk</span>
-                   <span className="text-emerald-400 font-bold">{result.primaryResistanceRisk}</span>
+                   <span className={`font-black uppercase text-[10px] ${
+                     result.primaryResistanceRisk === 'high' ? 'text-red-500' : 
+                     result.primaryResistanceRisk === 'moderate' ? 'text-amber-500' : 'text-emerald-500'
+                   }`}>{result.primaryResistanceRisk}</span>
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                   <span className="text-slate-400 font-bold uppercase tracking-wider">Alternative</span>
-                   <span className="font-bold">{result.alternativeDrug}</span>
+                <div className="flex justify-between items-start text-xs gap-4">
+                   <span className="text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap">Alternative</span>
+                   <span className="font-bold text-slate-700 text-right break-words max-w-[200px] leading-tight">
+                      {result.alternativeDrug || "None Identified"}
+                   </span>
                 </div>
              </div>
           </div>
@@ -108,14 +141,14 @@ export function PipelineOutput({ result }: PipelineOutputProps) {
               <div key={drug} className="space-y-2">
                 <div className="flex justify-between items-end">
                   <span className="font-bold text-xs text-slate-700">{drug}</span>
-                  <span className="text-[10px] font-bold text-slate-400">{(score * 100).toFixed(0)}%</span>
+                  <span className="text-[10px] font-bold text-slate-400">{Math.round((score || 0) * 100)}%</span>
                 </div>
                 <div className="h-2 bg-slate-50 rounded-full overflow-hidden">
                    <motion.div 
                      initial={{ width: 0 }}
-                     animate={{ width: `${score * 100}%` }}
+                     animate={{ width: `${(score || 0) * 100}%` }}
                      className={`h-full rounded-full ${
-                       score > 0.7 ? "bg-red-500" : score > 0.4 ? "bg-amber-500" : "bg-emerald-500"
+                       (score || 0) > 0.7 ? "bg-red-500" : (score || 0) > 0.4 ? "bg-amber-500" : "bg-emerald-500"
                      }`}
                    />
                 </div>
@@ -135,15 +168,17 @@ export function PipelineOutput({ result }: PipelineOutputProps) {
             <Microscope className="w-3 h-3" /> ADMET Properties
           </div>
           <div className="grid grid-cols-3 gap-4">
-            {Object.entries(result.admetScores || {}).slice(0, 6).map(([key, val]) => (
+            {Object.entries(result.admetScores || {})
+              .filter(([key]) => ["absorption", "distribution", "metabolism", "excretion", "toxicity"].includes(key))
+              .slice(0, 6).map(([key, val]) => (
               <div key={key} className="flex flex-col items-center gap-3 p-4 bg-slate-50 rounded-2xl hover:bg-emerald-50 transition-all group">
-                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold ${
-                    val > 0.7 ? "bg-white text-emerald-600 shadow-sm" : 
-                    val > 0.4 ? "bg-white text-amber-600 shadow-sm" : "bg-white text-red-600 shadow-sm"
-                 }`}>
-                    {Math.round(val * 100)}
-                 </div>
-                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter text-center group-hover:text-emerald-600">{key}</span>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold ${
+                    (val || 0) > 0.7 ? "bg-white text-emerald-600 shadow-sm" : 
+                    (val || 0) > 0.4 ? "bg-white text-amber-600 shadow-sm" : "bg-white text-red-600 shadow-sm"
+                  }`}>
+                    {Math.round((val || 0) * 100)}
+                  </div>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter text-center group-hover:text-emerald-600">{key}</span>
               </div>
             ))}
           </div>

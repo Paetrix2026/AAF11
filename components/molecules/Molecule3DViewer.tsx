@@ -29,12 +29,14 @@ export function Molecule3DViewer({ pdbData, ligandData, pdbUrl, height = 320 }: 
       if (!window.$3Dmol) return;
       if (glViewerRef.current) {
         glViewerRef.current.clear();
+        glViewerRef.current.setBackgroundColor("#ffffff");
       } else {
         glViewerRef.current = window.$3Dmol.createViewer(viewerRef.current, {
-          backgroundColor: "#111318",
+          backgroundColor: "#ffffff",
         });
       }
       const viewer = glViewerRef.current;
+      viewer.setBackgroundColor("#ffffff");
       
       if (pdbData) {
         viewer.addModel(pdbData, "pdb");
@@ -73,7 +75,7 @@ export function Molecule3DViewer({ pdbData, ligandData, pdbUrl, height = 320 }: 
   if (!pdbData && !pdbUrl) {
     return (
       <div style={{
-        height, background: "var(--bg-surface)", border: "1px solid var(--bg-border)",
+        height, background: "#ffffff", border: "1px solid var(--border)",
         display: "flex", alignItems: "center", justifyContent: "center",
       }}>
         <p style={{ fontFamily: "var(--font-body)", color: "var(--text-muted)", fontSize: "0.875rem" }}>
@@ -86,16 +88,16 @@ export function Molecule3DViewer({ pdbData, ligandData, pdbUrl, height = 320 }: 
   return (
     <div style={{
       position: "relative", height,
-      background: "var(--bg-surface)",
-      border: "1px solid var(--bg-border)",
-      boxShadow: "0 0 20px var(--accent-glow)",
+      background: "#ffffff",
+      border: "1px solid var(--border)",
+      boxShadow: "0 0 20px rgba(0,0,0,0.05)",
     }}>
       <div ref={viewerRef} style={{ width: "100%", height: "100%" }} />
       <div style={{
         position: "absolute", top: "0.5rem", left: "0.5rem",
         fontFamily: "var(--font-display)", fontSize: "0.5625rem",
-        color: "var(--text-muted)", letterSpacing: "0.1em",
-        background: "rgba(10,11,13,0.8)", padding: "0.25rem 0.5rem",
+        color: "var(--foreground)", letterSpacing: "0.1em",
+        background: "rgba(255,255,255,0.8)", padding: "0.25rem 0.5rem",
         pointerEvents: "none",
       }}>
         3D STRUCTURE

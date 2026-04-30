@@ -30,6 +30,7 @@ async def stream_pipeline(run_id: str):
                 if len(parts) == 3:
                     agent, status, message = parts
                     yield {
+                        "event": "update",
                         "data": json.dumps({
                             "agent": agent,
                             "status": status,
@@ -38,7 +39,11 @@ async def stream_pipeline(run_id: str):
                     }
                 sent_steps += 1
 
-            if run.get("status") == "complete":
+            # Heartbeat every 5 seconds to keep connection alive
+            if int(waited * 2) % 10 == 0:
+                yield {"event": "heartbeat", "data": "alive"}
+
+            if run.get("status") == "completed":
                 result = run.get("result")
                 yield {"data": json.dumps({"done": True, "result": result})}
                 break

@@ -73,36 +73,112 @@ async def fetch_uniprot(pathogen: str) -> List[Dict]:
             return []
 
 
-async def fetch_pubchem(pathogen: str) -> List[Dict]:
-    """Fetch known inhibitors from PubChem."""
+async def fetch_pubchem(compound_name: str) -> List[Dict]:
+    """Fetch specific compound data from PubChem."""
+    import urllib.parse
+    encoded_name = urllib.parse.quote(compound_name)
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
         try:
-            # Simple search for inhibitors
-            r = await client.get(
-                f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{pathogen} inhibitor/property/CanonicalSMILES,Title/JSON"
-            )
+            # We fetch both Canonical and Isomeric SMILES to be safe
+            url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{encoded_name}/property/CanonicalSMILES,IsomericSMILES,Title/JSON"
+            r = await client.get(url)
+            if r.status_code != 200:
+                return []
+            
             props = r.json().get("PropertyTable", {}).get("Properties", [])
-            return [{"name": p.get("Title"), "smiles": p.get("CanonicalSMILES")} for p in props[:5]]
-        except Exception:
+            results = []
+            for p in props[:5]:
+                # PubChem sometimes returns 'SMILES' instead of the specific types requested
+                smiles = p.get("CanonicalSMILES") or p.get("IsomericSMILES") or p.get("SMILES")
+                results.append({
+                    "name": p.get("Title") or compound_name,
+                    "smiles": smiles
+                })
+            return results
+        except Exception as e:
+            logger.warning(f"PubChem fetch failed for {compound_name}: {e}")
             return []
 
+async def research_targets(condition: str) -> Dict:
+    """Use AI to identify biological targets and known drugs for a condition."""
+    from utils.llm_router import get_llm
+    # Temporarily using groq as it is confirmed working in the current environment
+    llm = get_llm(provider="groq")
+    
+    prompt = f"""
+    Act as a molecular biologist and clinical pharmacologist. 
+    For the medical condition: '{condition}', identify:
+    1. The top 2-3 primary protein targets (use UniProt primary names or Gene names like 'MTOR', 'EGFR', 'IGF1R').
+    2. The top 3-4 known therapeutic compounds, FDA-approved drugs, or advanced experimental inhibitors used for this specific condition.
+    
+    Return ONLY a valid JSON object with this exact structure:
+    {{
+      "targets": ["GeneName1", "GeneName2"],
+      "compounds": ["DrugName1", "DrugName2", "DrugName3"]
+    }}
+    
+    Ensure the compound names are common names (e.g., 'Everolimus', not 'RAD001').
+    Respond ONLY with the JSON object.
+    """
+    try:
+        response = await llm.ainvoke(prompt)
+        content = response.content.strip()
+        
+        # Cleanup JSON
+        if "```" in content:
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+        
+        import json
+        data = json.loads(content)
+        logger.info(f"AI Research for {condition}: Found targets {data.get('targets')} and compounds {data.get('compounds')}")
+        return data
+    except Exception as e:
+        logger.error(f"AI Research failed for {condition}: {e}. Falling back to default targets.")
+        return {"targets": [condition], "compounds": []}
 
 async def run(state: PipelineState) -> PipelineState:
     pathogen = state["pathogen"]
-    state["step_updates"].append(f"FetchAgent:running:Fetching data for {pathogen} from multi-source APIs...")
+    state["step_updates"].append(f"FetchAgent:running:Initiating AI research for {pathogen}...")
     
-    # Parallel fetch
-    lit, prot, chem = await asyncio.gather(
-        fetch_pubmed(pathogen),
-        fetch_uniprot(pathogen),
-        fetch_pubchem(pathogen),
-    )
+    research = await research_targets(pathogen)
+    targets = research.get("targets", [])
+    compounds = research.get("compounds", [])
     
+    if not targets: targets = [pathogen]
+    
+    state["step_updates"].append(f"FetchAgent:running:Discovered targets: {', '.join(targets)}. Fetching molecular data...")
+
+    lit_task = fetch_pubmed(pathogen)
+    prot_tasks = [fetch_uniprot(t) for t in targets]
+    chem_tasks = [fetch_pubchem(c) for c in compounds]
+    
+    results = await asyncio.gather(lit_task, *prot_tasks, *chem_tasks)
+    
+    lit = results[0]
+    prot = []
+    prot_results = [p for p in results[1 : 1+len(targets)] if p is not None]
+    for i in range(len(prot_results)):
+        prot.extend(prot_results[i])
+        
+    chem = []
+    # results[1 + len(targets) : ]
+    for i in range(len(compounds)):
+        found = results[1+len(targets)+i]
+        # Filter out compounds without SMILES (like large proteins)
+        valid = [c for c in found if c.get("name") and c.get("smiles")]
+        chem.extend(valid)
+    
+    if not chem:
+        # Fallback to general inhibitor search
+        found = await fetch_pubchem(f"{pathogen} inhibitor")
+        chem = [c for c in found if c.get("name") and c.get("smiles")]
+
     state["literature"] = lit
     state["proteins"] = prot
     state["known_compounds"] = chem
     
-    # Extract sequences for next steps
     if prot:
         state["sequences"] = [p["sequence"] for p in prot if p.get("sequence")]
     

@@ -8,9 +8,12 @@ from agents.MutationParserAgent import run as mutation_parser_run
 from agents.StructurePrepAgent import run as structure_prep_run
 from agents.DockingAgent import run as docking_run
 from agents.ADMETAgent import run as admet_run
+from agents.PrecisionMedicineAgent import run as precision_medicine_run
 from agents.ResistanceAgent import run as resistance_run
 from agents.SelectivityAgent import run as selectivity_run
 from agents.SimilaritySearchAgent import run as similarity_search_run
+from agents.DecisionAgent import run as decision_run
+from agents.SimulationAgent import run as simulation_run
 from agents.ExplainabilityAgent import run as explainability_run
 from agents.ReportAgent import run as report_run
 
@@ -31,11 +34,14 @@ def build_pipeline_graph() -> StateGraph:
     graph.add_node("structure_prep", structure_prep_run)
     graph.add_node("docking", docking_run)
     graph.add_node("admet", admet_run)
+    graph.add_node("precision_medicine", precision_medicine_run)
     graph.add_node("resistance", resistance_run)
     graph.add_node("selectivity", selectivity_run)
     graph.add_node("similarity_search", similarity_search_run)
+    graph.add_node("decision", decision_run)
+    graph.add_node("simulation", simulation_run)
     graph.add_node("explainability", explainability_run)
-    graph.add_node("report", report_run)
+    graph.add_node("report_gen", report_run)
 
     # Define strict execution order
     graph.set_entry_point("planner")
@@ -44,11 +50,14 @@ def build_pipeline_graph() -> StateGraph:
     graph.add_edge("mutation_parser", "structure_prep")
     graph.add_edge("structure_prep", "docking")
     graph.add_edge("docking", "admet")
-    graph.add_edge("admet", "resistance")
+    graph.add_edge("admet", "precision_medicine")
+    graph.add_edge("precision_medicine", "resistance")
     graph.add_edge("resistance", "selectivity")
     graph.add_edge("selectivity", "similarity_search")
-    graph.add_edge("similarity_search", "explainability")
-    graph.add_edge("explainability", "report")
-    graph.add_edge("report", END)
+    graph.add_edge("similarity_search", "decision")
+    graph.add_edge("decision", "simulation")
+    graph.add_edge("simulation", "explainability")
+    graph.add_edge("explainability", "report_gen")
+    graph.add_edge("report_gen", END)
 
     return graph.compile()

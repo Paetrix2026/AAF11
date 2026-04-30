@@ -28,6 +28,8 @@ const AGENT_SEQUENCE = [
   "ResistanceAgent",
   "SelectivityAgent",
   "SimilaritySearchAgent",
+  "DecisionAgent",
+  "SimulationAgent",
   "ExplainabilityAgent",
   "ReportAgent",
 ];
@@ -245,11 +247,16 @@ export function PipelineRunner({ patientId }: PipelineRunnerProps) {
                                 <button
                                   key={idx}
                                   onClick={() => {
-                                    setPathogen(res.name);
+                                    if (res.metadata?.disease && res.metadata?.mutation) {
+                                      setPathogen(res.metadata.disease);
+                                      setVariant(res.metadata.mutation);
+                                    } else {
+                                      setPathogen(res.name);
+                                      const ext = extractMutation(res.name) || extractMutation(res.description || "");
+                                      if (ext) setVariant(ext);
+                                    }
                                     setSearchQuery(res.name);
                                     setShowSearchResults(false);
-                                    const ext = extractMutation(res.name) || extractMutation(res.description || "");
-                                    if (ext) setVariant(ext);
                                     toast.success(`Target Locked: ${res.name}`);
                                   }}
                                   className="w-full p-3 rounded-xl hover:bg-slate-50 transition-all text-left group"
@@ -279,11 +286,16 @@ export function PipelineRunner({ patientId }: PipelineRunnerProps) {
                                 <button
                                   key={idx}
                                   onClick={() => {
-                                    setPathogen(res.id);
+                                    if (res.metadata?.disease && res.metadata?.mutation) {
+                                      setPathogen(res.metadata.disease);
+                                      setVariant(res.metadata.mutation);
+                                    } else {
+                                      setPathogen(res.id || res.name);
+                                      const ext = extractMutation(res.name) || extractMutation(res.description || "");
+                                      if (ext) setVariant(ext);
+                                    }
                                     setSearchQuery(res.name);
                                     setShowSearchResults(false);
-                                    const ext = extractMutation(res.name) || extractMutation(res.description || "");
-                                    if (ext) setVariant(ext);
                                     toast.success(`Online Target Locked: ${res.name}`);
                                   }}
                                   className="w-full p-3 rounded-xl hover:bg-slate-50 transition-all text-left group"

@@ -1,4 +1,5 @@
-from typing import TypedDict, List, Optional
+from typing import TypedDict, List, Optional, Annotated
+import operator
 
 
 class PipelineState(TypedDict):
@@ -29,6 +30,6 @@ class PipelineState(TypedDict):
     recommendations: Optional[List[dict]]
     patient_profile: Optional[dict]
     report: Optional[str]
-    step_updates: List[str]
+    step_updates: Annotated[List[str], operator.add]
     run_id: Optional[str]
     error: Optional[str]

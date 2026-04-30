@@ -14,8 +14,10 @@ def align_and_parse_mutations(sequences: List[str]) -> List[str]:
         return []
 
     try:
-        import shutil
-        if not shutil.which("mafft"):
+        from utils.environment import get_binary_path
+        mafft_bin = get_binary_path("mafft")
+        
+        if not mafft_bin:
             logger.warning("MAFFT not found, skipping alignment")
             return []
 
@@ -25,7 +27,7 @@ def align_and_parse_mutations(sequences: List[str]) -> List[str]:
             fasta_path = f.name
 
         result = subprocess.run(
-            ["mafft", "--quiet", fasta_path],
+            [mafft_bin, "--quiet", fasta_path],
             capture_output=True, text=True, timeout=60
         )
         os.unlink(fasta_path)
@@ -63,7 +65,9 @@ def run(state: PipelineState) -> PipelineState:
     state["step_updates"].append("MutationParserAgent:running:Analyzing mutation profile...")
     sequences = state.get("sequences")
     if not sequences:
-        raise ValueError("MutationParserAgent: Missing 'sequences' from FetchAgent - cannot parse mutations without protein sequences")
+        logger.warning("MutationParserAgent: No sequences found, returning empty mutation list")
+        state["mutations"] = []
+        return state
 
     mutations = align_and_parse_mutations(sequences)
     state["mutations"] = mutations

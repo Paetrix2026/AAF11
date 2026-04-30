@@ -6,27 +6,12 @@ import { ArrowRight, Activity, Shield, Zap, Microscope, Terminal, Globe, Cpu, Lo
 
 export default function LandingPage() {
   return (
-    <main className="relative min-h-screen bg-background flex flex-col items-center justify-center overflow-hidden selection:bg-accent-primary/30 font-body">
-      {/* 1. Background System */}
-      <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-grid-white bg-[size:40px_40px] z-10" />
-        <div className="absolute inset-0 bg-gradient-to-b from-bg-base/0 via-bg-base/40 to-bg-base z-20" />
-        <img
-          src="/landing_bg.png"
-          alt="Scientific Background"
-          className="w-full h-full object-cover opacity-60 mix-blend-luminosity animate-slow-pulse"
-        />
-        {/* Scanning Line */}
-        <motion.div 
-          initial={{ top: "-10%" }}
-          animate={{ top: "110%" }}
-          transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-          className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-accent-primary/40 to-transparent z-30 shadow-[0_0_15px_var(--accent-glow)]"
-        />
-      </div>
+    <main className="relative min-h-screen bg-white flex flex-col items-center justify-center overflow-hidden selection:bg-accent-primary/30 font-body">
+      {/* Background System - Removed to keep it white */}
+      <div className="absolute inset-0 z-0 bg-white" />
 
       {/* 2. Top Navigation */}
-      <nav className="absolute top-0 left-0 w-full p-8 z-50 flex justify-between items-center mix-blend-difference">
+      <nav className="absolute top-0 left-0 w-full p-8 z-50 flex justify-between items-center">
         <div className="flex items-center gap-4">
           <Activity className="w-8 h-8 text-primary" />
           <span className="font-display text-2xl font-black tracking-tighter uppercase text-foreground">
@@ -60,7 +45,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "circOut" }}
-            className="font-display text-6xl md:text-8xl lg:text-[10rem] font-black tracking-tighter text-center leading-[0.85] mb-8"
+            className="font-display text-6xl md:text-8xl lg:text-[10rem] font-black tracking-tighter text-center leading-[0.85] mb-8 text-black"
           >
             CLINICAL<br />
             <span className="text-glow text-primary">INTELLIGENCE</span>
@@ -90,7 +75,7 @@ export default function LandingPage() {
                 Initialize Platform <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
               </span>
             </Link>
-            <button className="px-12 py-6 border-2 border-white/20 text-foreground font-black uppercase text-sm tracking-[0.2em] transition-all hover:bg-white hover:text-[#0a0b0d]">
+            <button className="px-12 py-6 border-2 border-black/10 text-foreground font-black uppercase text-sm tracking-[0.2em] transition-all hover:bg-black hover:text-white">
               Technical Documentation
             </button>
           </motion.div>
@@ -102,7 +87,7 @@ export default function LandingPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1 }}
-        className="absolute bottom-4 left-0 w-full flex items-center gap-12 whitespace-nowrap overflow-hidden border-y border-white/5 py-4 bg-card/50 backdrop-blur-sm z-40"
+        className="absolute bottom-4 left-0 w-full flex items-center gap-12 whitespace-nowrap overflow-hidden border-y border-black/5 py-4 bg-white/50 backdrop-blur-sm z-40"
       >
         <div className="flex animate-marquee gap-12 items-center text-[10px] font-display text-foreground/40 tracking-[0.3em] uppercase">
           <StatItem icon={<Terminal className="w-3 h-3" />} label="Mutations Parsed" value="1.2M+" />
@@ -166,7 +151,7 @@ function StatItem({ icon, label, value }: { icon: React.ReactNode, label: string
 
 function FeatureCard({ index, icon, title, description }: { index: string, icon: React.ReactNode, title: string, description: string }) {
   return (
-    <div className="glass-panel p-10 flex flex-col h-full group cursor-pointer">
+    <div className="glass-panel p-10 flex flex-col h-full group cursor-pointer border border-black/5 hover:border-primary/20 transition-all bg-white">
       <div className="flex justify-between items-start mb-12">
         <div className="p-3 bg-accent-primary/10 rounded-none group-hover:bg-accent-primary transition-colors text-primary group-hover:text-bg-base">
           {icon}

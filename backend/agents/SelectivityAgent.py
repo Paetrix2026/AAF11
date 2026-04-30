@@ -33,7 +33,8 @@ def run(state: PipelineState) -> PipelineState:
     state["step_updates"].append("SelectivityAgent:running:Checking off-target binding...")
     docking = state.get("docking_results")
     if not docking:
-        raise ValueError("SelectivityAgent: Missing 'docking_results' from DockingAgent - cannot score selectivity without compounds")
+        logger.warning("SelectivityAgent: No docking results found, skipping selectivity scoring")
+        return state
 
     off_target_data = load_off_target_data()
 

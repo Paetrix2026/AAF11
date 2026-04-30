@@ -3,6 +3,11 @@
 .env.local
 .env.*.local
 backend/.env
+# Google Cloud / Service Account Keys
+*-project-*.json
+*-key.json
+*-credentials.json
+gdg-project-*.json
 
 # ── Prompt / internal docs ────────────────────────────────
 prompt.md

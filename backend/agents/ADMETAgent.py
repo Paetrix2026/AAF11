@@ -56,13 +56,14 @@ def run(state: PipelineState) -> PipelineState:
     state["step_updates"].append("ADMETAgent:running:Computing ADMET properties...")
     docking = state.get("docking_results")
     if not docking:
-        raise ValueError("ADMETAgent: Missing 'docking_results' from DockingAgent - cannot compute ADMET properties")
+        logger.warning("ADMETAgent: No docking results found, skipping ADMET scoring")
+        return state
 
     admet_data = {}
     for compound in docking:
         smiles = compound.get("smiles")
         name = compound.get("name")
-        if smiles and name:
+        if smiles and name and isinstance(smiles, str):
             admet_data[name] = compute_admet(smiles)
 
     state["admet_scores"] = admet_data

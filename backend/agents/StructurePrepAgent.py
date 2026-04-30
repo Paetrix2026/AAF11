@@ -45,13 +45,11 @@ def clean_pdb(input_pdb: str, output_pdb: str) -> None:
 
 def convert_to_pdbqt(input_pdb: str, output_pdbqt: str) -> bool:
     """Convert PDB to PDBQT using obabel."""
-    if not shutil.which("obabel"):
-        # Check specific path if not in PATH (windows)
-        obabel_path = r"C:\Program Files\OpenBabel-3.1.1\obabel.exe"
-        if not os.path.exists(obabel_path):
-            return False
-    else:
-        obabel_path = "obabel"
+    from utils.environment import get_binary_path
+    obabel_path = get_binary_path("obabel")
+    
+    if not obabel_path:
+        return False
     
     try:
         # Step 1: Add hydrogens
@@ -73,19 +71,34 @@ def convert_to_pdbqt(input_pdb: str, output_pdbqt: str) -> bool:
         logger.error(f"obabel conversion failed: {e}")
         return False
 
-async def fetch_alphafold(accession: str) -> str:
+def fetch_alphafold(accession: str) -> str:
     """Fetch structure from AlphaFold Protein Structure Database."""
-    try:
-        url = f"https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v4.pdb"
-        resp = requests.get(url, timeout=20)
-        if resp.status_code == 200:
-            logger.info(f"AlphaFold: Successfully fetched structure for {accession}")
-            return resp.text
-    except Exception as e:
-        logger.warning(f"AlphaFold fetch failed for {accession}: {e}")
+    import gzip
+    from io import BytesIO
+    
+    # Try multiple common versions and formats
+    variants = [
+        f"https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v4.pdb",
+        f"https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v4.pdb.gz",
+        f"https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v3.pdb",
+        f"https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v3.pdb.gz",
+    ]
+    
+    for url in variants:
+        try:
+            resp = requests.get(url, timeout=15)
+            if resp.status_code == 200:
+                logger.info(f"AlphaFold: Successfully fetched structure for {accession} via {url}")
+                if url.endswith(".gz"):
+                    with gzip.GzipFile(fileobj=BytesIO(resp.content)) as f:
+                        return f.read().decode("utf-8")
+                return resp.text
+        except Exception as e:
+            logger.debug(f"AlphaFold fetch failed for {url}: {e}")
+    
     return None
 
-async def fetch_esmfold(sequence: str) -> str:
+def fetch_esmfold(sequence: str) -> str:
     """Predict structure using ESMFold API (Meta AI)."""
     try:
         url = "https://api.esmatlas.com/foldSequence/v1/pdb/"
@@ -110,7 +123,7 @@ def run(state: PipelineState) -> PipelineState:
         for p in proteins:
             acc = p.get("accession")
             if acc:
-                pdb_data = asyncio.run(fetch_alphafold(acc))
+                pdb_data = fetch_alphafold(acc)
                 if pdb_data:
                     source = f"AlphaFold ({acc})"
                     break
@@ -120,7 +133,7 @@ def run(state: PipelineState) -> PipelineState:
         for p in proteins:
             seq = p.get("sequence")
             if seq and len(seq) < 400: # ESMFold has limits
-                pdb_data = asyncio.run(fetch_esmfold(seq))
+                pdb_data = fetch_esmfold(seq)
                 if pdb_data:
                     source = "ESMFold Prediction"
                     break

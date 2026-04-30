@@ -19,11 +19,17 @@ DockingAgent        (AutoDock Vina screening)
     ↓
 ADMETAgent          (RDKit property prediction)
     ↓
+PrecisionMedicineAgent (Patient safety cross-ref)
+    ↓
 ResistanceAgent     (ML-based resistance scoring)
     ↓
 SelectivityAgent    (Off-target binding check)
     ↓
 SimilaritySearchAgent (Historical case retrieval from DB)
+    ↓
+DecisionAgent       (Multi-criteria drug ranking)
+    ↓
+SimulationAgent     (Clinical outcome simulation)
     ↓
 ExplainabilityAgent (Groq LLM synthesis → recommendation JSON)
     ↓
@@ -60,6 +66,11 @@ Plans which agents to execute based on input. Currently runs all agents for ever
 - Calculates absorption, distribution, metabolism, excretion, toxicity scores
 - No system binary required
 
+### PrecisionMedicineAgent
+- Cross-references discovered drugs with the specific patient profile
+- Identifies contraindications (e.g., heart failure + cardiotoxicity)
+- Calculates a `patient_risk` score based on known medication interactions
+
 ### ResistanceAgent
 - Loads `data/structures/mutation_resistance.json`
 - Scores resistance probability per drug given detected mutations
@@ -71,6 +82,14 @@ Plans which agents to execute based on input. Currently runs all agents for ever
 ### SimilaritySearchAgent
 - Queries the `outcomes` table in Neon for similar historical cases
 - Matches by pathogen name (ILIKE)
+
+### DecisionAgent
+- Ranks compounds based on binding affinity, resistance probability, and patient-specific risk.
+- Calculates a weighted 'Decision Score' for clinical prioritization.
+
+### SimulationAgent
+- Performs lightweight clinical stability simulations.
+- Predicts 'Time-to-Failure' and 'Predicted Outcome' (stable, decline, fail).
 
 ### ExplainabilityAgent
 - Uses Groq (llama-3.3-70b-versatile) to synthesize a recommendation

@@ -639,23 +639,23 @@ export default function DockingPage() {
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.1 }}
-                        className={`${cardStyle} flex-1 min-h-[600px] bg-slate-950 border border-white/5`}
+                        className={`${cardStyle} flex-1 min-h-[600px] bg-white border border-slate-200`}
                       >
                         {/* Viewport UI Overlay */}
                         <div className="absolute top-8 left-8 z-20 space-y-4 pointer-events-none">
                           <div className="flex items-center gap-3">
                             <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
-                            <span className="text-[10px] font-bold text-white uppercase tracking-[0.3em] opacity-80">Simulation Engine Active</span>
+                            <span className="text-[10px] font-bold text-slate-900 uppercase tracking-[0.3em] opacity-80">Simulation Engine Active</span>
                           </div>
                           {result && (
-                            <div className="px-4 py-2 bg-white/10 backdrop-blur-md rounded-xl border border-white/10">
-                               <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">{result.pdb_id} :: LOADED</span>
+                            <div className="px-4 py-2 bg-slate-100 backdrop-blur-md rounded-xl border border-slate-200">
+                               <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{result.pdb_id} :: LOADED</span>
                             </div>
                           )}
                         </div>
 
                         <div className="absolute top-8 right-8 z-20 flex gap-2">
-                           <button className="p-3 bg-white/10 backdrop-blur-md rounded-xl text-white hover:bg-white/20 transition-all border border-white/10">
+                           <button className="p-3 bg-white backdrop-blur-md rounded-xl text-slate-900 hover:bg-slate-50 transition-all border border-slate-200">
                               <Maximize2 className="w-4 h-4" />
                            </button>
                         </div>
@@ -711,7 +711,7 @@ export default function DockingPage() {
                                       initial={{ opacity: 0 }}
                                       animate={{ opacity: 1 }}
                                       transition={{ delay: 0.3 }}
-                                      className="text-4xl font-bold text-white tracking-tighter"
+                                      className="text-4xl font-bold text-slate-900 tracking-tighter"
                                    >
                                       CLUSTER_A1 <span className="text-emerald-500">READY</span>
                                    </motion.h3>
@@ -739,9 +739,9 @@ export default function DockingPage() {
                                          initial={{ opacity: 0, x: -10 }}
                                          animate={{ opacity: 1, x: 0 }}
                                          transition={{ delay: 0.5 + i * 0.1 }}
-                                         className="p-3 bg-white/5 rounded-2xl border border-white/5 text-left backdrop-blur-md"
+                                         className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-left backdrop-blur-md"
                                       >
-                                         <div className="text-[7px] font-bold text-white/30 uppercase tracking-widest mb-1">{item.label}</div>
+                                         <div className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mb-1">{item.label}</div>
                                          <div className={`text-[10px] font-bold ${item.color} tracking-wider`}>{item.val}</div>
                                       </motion.div>
                                    ))}
@@ -749,7 +749,7 @@ export default function DockingPage() {
                               </div>
                             </div>
                           ) : (
-                            <div className="w-full h-full rounded-[2rem] overflow-hidden border border-white/5 bg-slate-900/50 relative group">
+                            <div className="w-full h-full rounded-[2rem] overflow-hidden border border-slate-100 bg-white relative group">
                               <Molecule3DViewer 
                                 pdbData={result.pdb_content} 
                                 ligandData={selectedResult?.ligand_pdb}
@@ -758,8 +758,8 @@ export default function DockingPage() {
                               {/* Viewport HUD */}
                               <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
                                  <div className="flex gap-2">
-                                    <span className="px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-lg text-[9px] font-bold text-white uppercase border border-white/10">CENTER: 0, 0, 0</span>
-                                    <span className="px-3 py-1.5 bg-black/60 backdrop-blur-md rounded-lg text-[9px] font-bold text-white uppercase border border-white/10">ZOOM: 1.2X</span>
+                                    <span className="px-3 py-1.5 bg-white/80 backdrop-blur-md rounded-lg text-[9px] font-bold text-slate-900 uppercase border border-slate-200">CENTER: 0, 0, 0</span>
+                                    <span className="px-3 py-1.5 bg-white/80 backdrop-blur-md rounded-lg text-[9px] font-bold text-slate-900 uppercase border border-slate-200">ZOOM: 1.2X</span>
                                  </div>
                               </div>
                             </div>
@@ -767,27 +767,27 @@ export default function DockingPage() {
                         </div>
 
                         {/* Bottom Telemetry Bar */}
-                        <div className="p-8 bg-black/40 backdrop-blur-xl border-t border-white/5 flex items-center justify-between">
-                          <div className="flex gap-8">
+                        <div className="p-8 bg-slate-50 backdrop-blur-xl border-t border-slate-100 flex items-center justify-between">
+                           <div className="flex gap-8">
                             <div className="space-y-1">
-                              <span className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em]">Stability</span>
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Stability</span>
                               <div className="flex items-center gap-2">
-                                 <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">Nominal</span>
+                                 <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Nominal</span>
                                  <div className="flex gap-0.5">
                                     {[1,2,3,4].map(i => <div key={i} className="w-1 h-3 bg-emerald-500/40 rounded-full" />)}
                                  </div>
                               </div>
                             </div>
-                            <div className="w-[1px] h-10 bg-white/10" />
+                            <div className="w-[1px] h-10 bg-slate-200" />
                             <div className="space-y-1">
-                              <span className="text-[9px] font-bold text-white/30 uppercase tracking-[0.2em]">Coordinate Grid</span>
-                              <span className="block text-xs font-bold text-white uppercase tracking-widest">RCSB_NATIVE_REF</span>
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Coordinate Grid</span>
+                              <span className="block text-xs font-bold text-slate-900 uppercase tracking-widest">RCSB_NATIVE_REF</span>
                             </div>
                           </div>
 
                           {result && (
                             <div className="flex gap-3">
-                              <button className="h-12 px-6 bg-white/10 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest border border-white/10 hover:bg-white hover:text-slate-900 transition-all">
+                              <button className="h-12 px-6 bg-white text-slate-900 rounded-xl font-bold text-[10px] uppercase tracking-widest border border-slate-200 hover:bg-slate-50 transition-all">
                                  Export Analysis Log
                               </button>
                               <Button className="h-12 px-8 bg-emerald-500 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all">

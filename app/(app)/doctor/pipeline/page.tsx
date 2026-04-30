@@ -9,6 +9,7 @@ import { Play, Search, User, ChevronRight, Activity, ShieldCheck, Zap, X, Filter
 import { getPatients } from "@/lib/api";
 import { Patient } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
+import { validateUUID } from "@/lib/utils";
 
 export default function PipelinePage() {
   const [patientId, setPatientId] = useState("");
@@ -116,8 +117,8 @@ export default function PipelinePage() {
                    {[1,2,3].map(i => <div key={i} className="w-8 h-1.5 rounded-full bg-slate-100" />)}
                 </div>
                 <Button 
-                  onClick={() => patientId.trim() && setStarted(true)} 
-                  disabled={!patientId.trim()}
+                  onClick={() => (selectedPatient || validateUUID(patientId)) && setStarted(true)} 
+                  disabled={!patientId.trim() || (!selectedPatient && !validateUUID(patientId))}
                   className="h-16 px-10 bg-emerald-500 text-white rounded-[1.25rem] font-bold text-sm hover:bg-emerald-600 transition-all disabled:opacity-50"
                 >
                   <Play className="w-4 h-4 mr-2 fill-current" />
