@@ -48,6 +48,7 @@ def run(state: PipelineState) -> PipelineState:
         # Full simulation metadata
         "simulationResults": sim_results,
         "mutations": state.get("mutations") or [],
+        "symptoms": state.get("symptoms") or [],
     }
 
     state["report"] = report

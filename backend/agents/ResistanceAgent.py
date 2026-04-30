@@ -33,24 +33,60 @@ def score_resistance(mutations: list, drug: str, resistance_data: dict) -> float
     return min(1.0, score)
 
 
-def run(state: PipelineState) -> PipelineState:
-    state["step_updates"].append("ResistanceAgent:running:Scoring resistance profiles...")
-    mutations = state.get("mutations")
-    if mutations is None:
-        mutations = []
+async def score_resistance_dynamic(mutations: list, drug: str, pathogen: str) -> float:
+    """Use AI to estimate resistance probability if not in database."""
+    from utils.llm_router import get_llm
+    llm = get_llm(provider="groq")
+    
+    prompt = f"""
+    As a clinical pharmacologist, estimate the probability (0.0 to 1.0) that the mutations {mutations} 
+    induce resistance in the drug '{drug}' for the condition/pathogen '{pathogen}'.
+    
+    CRITICAL: Different drugs have different mechanisms (e.g., AChE inhibitors vs NMDA antagonists). 
+    Do NOT provide identical scores for different drug classes. 
+    Analyze how the mutation impacts the specific biological target of '{drug}'.
+    
+    Return ONLY a single float between 0.0 and 1.0.
+    """
+    try:
+        response = await llm.ainvoke(prompt)
+        score_text = response.content.strip()
+        # Extract float
+        import re
+        match = re.search(r"(\d+\.\d+|\d+)", score_text)
+        if match:
+            return min(1.0, float(match.group(1)))
+    except Exception as e:
+        logger.warning(f"Dynamic resistance scoring failed for {drug}: {e}")
+    
+    return 0.1 # Fallback
 
+
+async def run(state: PipelineState) -> PipelineState:
+    state["step_updates"].append("ResistanceAgent:running:Scoring resistance profiles...")
+    mutations = state.get("mutations") or []
+    pathogen = state.get("pathogen", "Unknown")
+    
     docking = state.get("docking_results")
     if not docking:
         logger.warning("ResistanceAgent: No docking results found, skipping resistance scoring")
         return state
 
     resistance_data = load_resistance_data()
-
     resistance_scores = {}
+    
     for compound in docking:
         name = compound.get("name")
-        if name:
-            resistance_scores[name] = score_resistance(mutations, name, resistance_data)
+        if not name: continue
+        
+        # Try static data first
+        score = score_resistance(mutations, name, resistance_data)
+        
+        # If static data returned default (0.1) and we have mutations, try dynamic AI scoring
+        if score == 0.1 and mutations:
+            score = await score_resistance_dynamic(mutations, name, pathogen)
+            
+        resistance_scores[name] = score
 
     state["resistance_scores"] = resistance_scores
     state["step_updates"].append(f"ResistanceAgent:complete:Scored resistance for {len(resistance_scores)} compound(s)")

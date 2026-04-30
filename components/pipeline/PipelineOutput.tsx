@@ -78,18 +78,35 @@ export function PipelineOutput({ result }: PipelineOutputProps) {
                 
                 {/* Molecular Structure Visualization */}
                 <div className="my-6 aspect-square w-full bg-slate-50/50 rounded-[2rem] border border-slate-100 flex items-center justify-center relative overflow-hidden p-6 group-hover:bg-white transition-all">
-                   {result.smiles ? (
-                     <img 
-                       src={`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/${encodeURIComponent(result.smiles)}/PNG`} 
-                       alt="Molecular Structure"
-                       onError={(e) => {
-                         const target = e.target as HTMLImageElement;
-                         if (!target.src.includes('cactus')) {
-                            target.src = `https://cactus.nci.nih.gov/chemical/structure/${encodeURIComponent(result.smiles || '')}/image`;
-                         }
-                       }}
-                       className="max-w-full max-h-full mix-blend-multiply opacity-80 group-hover:opacity-100 transition-all scale-110 group-hover:scale-125 duration-700"
-                     />
+                    {result.smiles || result.primaryDrug ? (
+                      <img 
+                        src={`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/${encodeURIComponent(result.smiles || "")}/PNG`} 
+                        alt="Molecular Structure"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          const encodedSmiles = encodeURIComponent(result.smiles || "");
+                          const encodedName = encodeURIComponent(result.primaryDrug || "");
+                          
+                          if (target.src.includes('smiles') && result.primaryDrug) {
+                            // Fallback 1: Try by name
+                            target.src = `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/${encodedName}/PNG`;
+                          } else if (!target.src.includes('cactus') && result.smiles) {
+                            // Fallback 2: Try Cactus NCI
+                            target.src = `https://cactus.nci.nih.gov/chemical/structure/${encodedSmiles}/image`;
+                          } else {
+                            // Final Fallback: Hide or show placeholder
+                            target.style.display = 'none';
+                            const parent = target.parentElement;
+                            if (parent) {
+                               const placeholder = document.createElement('div');
+                               placeholder.className = "flex flex-col items-center gap-2 text-slate-300";
+                               placeholder.innerHTML = '<svg class="w-8 h-8 opacity-20" ...></svg><span class="text-[8px] font-bold uppercase tracking-widest">Image Unavailable</span>';
+                               parent.appendChild(placeholder);
+                            }
+                          }
+                        }}
+                        className="max-w-full max-h-full mix-blend-multiply opacity-80 group-hover:opacity-100 transition-all scale-110 group-hover:scale-125 duration-700"
+                      />
                    ) : (
                      <div className="flex flex-col items-center gap-2 text-slate-300">
                         <Microscope className="w-8 h-8 opacity-20" />

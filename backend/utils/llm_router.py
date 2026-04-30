@@ -30,7 +30,7 @@ def get_google() -> any:
     if api_key:
         try:
             return ChatGoogleGenerativeAI(
-                model="gemini-1.5-flash",
+                model="gemini-2.5-flash-latest",
                 google_api_key=api_key,
                 temperature=0.1,
                 max_retries=1,
@@ -42,7 +42,7 @@ def get_google() -> any:
     try:
         from langchain_google_vertexai import ChatVertexAI
         return ChatVertexAI(
-            model="gemini-1.5-flash",
+            model="gemini-2.5-flash-latest",
             temperature=0.1,
             max_retries=1,
         )

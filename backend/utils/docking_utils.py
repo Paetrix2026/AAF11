@@ -13,8 +13,13 @@ CREATE_NO_WINDOW = 0x08000000 if platform.system() == "Windows" else 0
 
 logger = get_logger("docking_utils")
 
-# No hardcoded screening compounds - always use dynamic discovery
-SCREENING_COMPOUNDS = []
+# Standard reference compounds for manual docking screening
+SCREENING_COMPOUNDS = [
+    {"name": "Oseltamivir", "smiles": "CCC(CC)OC1C=C(CC(C1N)NC(=O)C)C(=O)OCC"},
+    {"name": "Favipiravir", "smiles": "C1=C(N=C(C(=O)N1)C(=O)N)F"},
+    {"name": "Remdesivir", "smiles": "CCC(CC)COC(=O)C(C)NP(=O)(OCC1C(C(C(O1)(C#N)C2=CC=C3N2N=CN=C3N)O)O)OC4=CC=CC=C4"},
+    {"name": "Molnupiravir", "smiles": "CC(C)C(=O)OCC1C(C(C(O1)N2C=CC(=NC2=O)NO)O)O"}
+]
 
 @dataclass
 class DockingResult:
@@ -101,14 +106,16 @@ class ProteinPreparer:
         from utils.environment import get_binary_path
         obabel = get_binary_path("obabel")
         if not obabel: raise RuntimeError("STRICT_FAIL: 'obabel' not found in PATH or standard fallbacks.")
-        result = subprocess.run([obabel, input_pdb, "-O", output_pdb, "-h"], capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
+        # Explicitly set input and output formats
+        result = subprocess.run([obabel, "-ipdb", input_pdb, "-opdb", "-O", output_pdb, "-h"], capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
         if result.returncode != 0 or not os.path.exists(output_pdb):
             raise RuntimeError(f"STRICT_FAIL: obabel hydrogen addition failed.\nError: {result.stderr}")
 
     def _convert_to_pdbqt(self, input_pdb: str, output_pdbqt: str) -> None:
         from utils.environment import get_binary_path
         obabel = get_binary_path("obabel")
-        result = subprocess.run([obabel, input_pdb, "-O", output_pdbqt, "-xr"], capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
+        # Explicitly set input and output formats
+        result = subprocess.run([obabel, "-ipdb", input_pdb, "-opdbqt", "-O", output_pdbqt, "-xr"], capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
         if result.returncode != 0 or not os.path.exists(output_pdbqt):
              raise RuntimeError(f"STRICT_FAIL: obabel PDBQT conversion failed.\nError: {result.stderr}")
 

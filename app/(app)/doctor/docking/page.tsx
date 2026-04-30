@@ -24,7 +24,8 @@ import {
   Cpu,
   RefreshCw,
   Box,
-  Maximize2
+  Maximize2,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { getScreeningCompounds, searchPathogens, searchLocal, searchOnline } from "@/lib/api";
 import { Molecule3DViewer } from "@/components/molecules/Molecule3DViewer";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function DockingPage() {
@@ -51,6 +59,8 @@ export default function DockingPage() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [mutation, setMutation] = useState("");
+  const [showModal, setShowModal] = useState(false);
 
   // Grid box parameters
   const [grid, setGrid] = useState({
@@ -65,15 +75,17 @@ export default function DockingPage() {
   ];
 
   const targets = [
-    { name: "H5N1 Avian Flu", id: "H5N1", pdb: "4WSB" },
-    { name: "SARS-CoV-2 Mpro", id: "SARS-CoV-2", pdb: "7BV2" },
-    { name: "H1N1 Swine Flu", id: "H1N1", pdb: "3BEQ" },
-    { name: "Influenza A NA", id: "Influenza A", pdb: "4WSB" },
+    { name: "H5N1 Avian Flu", id: "H5N1", pdb: "4WSB", mutation: "H274Y" },
+    { name: "SARS-CoV-2 Mpro", id: "SARS-CoV-2", pdb: "7BV2", mutation: "E484K" },
+    { name: "H1N1 Swine Flu", id: "H1N1", pdb: "3BEQ", mutation: "H275Y" },
+    { name: "Influenza A NA", id: "Influenza A", pdb: "4WSB", mutation: "N294S" },
   ];
+
+  const [screeningCompounds, setScreeningCompounds] = useState<any[]>([]);
 
   useEffect(() => {
     getScreeningCompounds().then(res => {
-      // Logic for compounds
+      if (res.success) setScreeningCompounds(res.data);
     });
 
     // Fetch saved discoveries for the "Analysis Repo" search
@@ -111,7 +123,7 @@ export default function DockingPage() {
     doc.setTextColor(30, 41, 59); // slate-800
     doc.text("Clinical Summary", 14, 50);
     doc.setFontSize(10);
-    doc.text(`Analysis for target: ${result.target || result.pdb_id}`, 14, 58);
+    doc.text(`Analysis for target: ${result.target || result.pdb_id}${result.mutation ? ` (${result.mutation})` : ''}`, 14, 58);
     
     const sorted = [...result.results].sort((a: any, b: any) => b.decision_score - a.decision_score);
     const topDrug = sorted[0];
@@ -161,6 +173,7 @@ export default function DockingPage() {
       formData.append("size_y", grid.sy.toString());
       formData.append("size_z", grid.sz.toString());
       formData.append("exhaustiveness", exhaustiveness.toString());
+      if (mutation) formData.append("mutation", mutation);
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/dock`, {
         method: "POST",
@@ -376,8 +389,10 @@ export default function DockingPage() {
                               key={t.id}
                               onClick={() => {
                                 setTarget(t.id);
+                                setSearchQuery(t.id);
                                 setPdbId(t.pdb);
-                                toast.success(`Target: ${t.id} established`);
+                                setMutation(t.mutation || "");
+                                toast.success(`Target: ${t.id} | Mutation: ${t.mutation || 'WT'}`);
                               }}
                               className={`w-full flex items-center justify-between p-3 rounded-2xl transition-all group ${
                                  target === t.id 
@@ -405,106 +420,153 @@ export default function DockingPage() {
                         <div className="flex-1 h-[1px] bg-slate-100" />
                       </div>
 
-                      {/* Manual Search */}
-                      <div className="space-y-3 relative">
-                        <Label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 px-1">Signature Search</Label>
-                        <div className="relative group">
-                          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />
-                          <Input 
-                            placeholder="SEARCH GENE OR PDB..." 
-                            value={searchQuery || pdbId}
-                            onChange={(e) => handleSearch(e.target.value)}
-                            className="pl-11 h-12 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-xs uppercase tracking-wider focus-visible:ring-2 focus-visible:ring-emerald-500/10 focus-visible:bg-white transition-all"
-                          />
-                          {searchLoading && (
-                             <RefreshCw className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-emerald-500 animate-spin" />
-                          )}
+                      {/* Manual Search Split Logic */}
+                      <div className="space-y-6">
+                        {/* Primary Search: Target */}
+                        <div className="space-y-3 relative">
+                          <div className="flex justify-between items-end px-1">
+                            <Label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Biological Target Identifier</Label>
+                            {pdbId && <span className="text-[8px] font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full">ID Locked</span>}
+                          </div>
+                          <div className="relative group">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />
+                            <Input 
+                              placeholder="Search subjects or enter explicit Project ID..." 
+                              value={searchQuery}
+                              onChange={(e) => handleSearch(e.target.value)}
+                              className="pl-12 h-16 bg-slate-50/50 border-none rounded-[1.5rem] font-bold text-sm focus-visible:ring-2 focus-visible:ring-emerald-500/20 focus-visible:bg-white transition-all shadow-sm"
+                            />
+                            {(searchQuery || pdbId) && (
+                              <button 
+                                onClick={() => { setSearchQuery(""); setPdbId(""); setTarget(""); setMutation(""); }}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 bg-white border border-slate-100 rounded-xl flex items-center justify-center hover:bg-slate-50 transition-all text-slate-400"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Search Results Dropdown */}
+                          <AnimatePresence>
+                            {showSearchResults && (searchQuery.length >= 2 || searchResults.length > 0) && (
+                              <motion.div 
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: 10 }}
+                                className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-[2rem] overflow-hidden z-50 shadow-2xl"
+                              >
+                                <div className="grid grid-cols-2 divide-x divide-slate-100 h-[320px]">
+                                  {/* Left: Local */}
+                                  <div className="flex flex-col min-w-0">
+                                    <div className="p-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+                                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Local Vault</span>
+                                      {searchLoading && <RefreshCw className="w-2.5 h-2.5 text-emerald-500 animate-spin" />}
+                                    </div>
+                                    <ScrollArea className="flex-1">
+                                      <div className="p-2 space-y-1">
+                                        {searchResults.filter(r => r.source === 'local').length === 0 ? (
+                                          <div className="py-12 text-center opacity-30 text-[9px] font-bold uppercase tracking-widest">
+                                            {searchLoading ? "Scanning Vault..." : searchQuery ? "No Local Data" : "Ready for Input..."}
+                                          </div>
+                                        ) : (
+                                          searchResults.filter(r => r.source === 'local').map((res, idx) => (
+                                            <button
+                                              key={idx}
+                                              onClick={() => {
+                                                const metadata = res.metadata as any;
+                                                const diseaseName = metadata?.disease || res.name.split(/_| FR_/)[0];
+                                                const mutationCode = metadata?.mutation || (res.name.match(/[A-Z]\d+[A-Z]/)?.[0] || "");
+                                                const gene = metadata?.gene;
+                                                const rawId = res.id.includes(':') ? res.id.split(':')[1] : res.id;
+                                                
+                                                const resolvedPdbId = (gene && !gene.includes('_')) ? gene : 
+                                                                    (rawId && !rawId.includes('_') && rawId.length < 15) ? rawId : 
+                                                                    diseaseName;
+                                                
+                                                setPdbId(resolvedPdbId);
+                                                setTarget(diseaseName);
+                                                setSearchQuery(diseaseName);
+                                                setMutation(mutationCode);
+                                                setShowSearchResults(false);
+                                                toast.success(`Target: ${diseaseName}${mutationCode ? ` | Mutation: ${mutationCode}` : ''}`);
+                                              }}
+                                              className="w-full p-3 rounded-xl hover:bg-slate-50 transition-all text-left group"
+                                            >
+                                              <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider truncate">{res.name}</div>
+                                              <div className="text-[8px] text-slate-400 font-medium uppercase truncate mt-1">{res.description}</div>
+                                            </button>
+                                          ))
+                                        )}
+                                      </div>
+                                    </ScrollArea>
+                                  </div>
+
+                                  {/* Right: Online */}
+                                  <div className="flex flex-col min-w-0">
+                                    <div className="p-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+                                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Global Repo</span>
+                                      {searchLoading && <RefreshCw className="w-2.5 h-2.5 text-blue-500 animate-spin" />}
+                                    </div>
+                                    <ScrollArea className="flex-1">
+                                      <div className="p-2 space-y-1">
+                                        {searchResults.filter(r => r.source === 'online').length === 0 ? (
+                                          <div className="py-12 text-center opacity-30 text-[9px] font-bold uppercase tracking-widest">
+                                            {searchLoading ? "Consulting UniProt..." : searchQuery ? "No Online Results" : "Awaiting Query..."}
+                                          </div>
+                                        ) : (
+                                          searchResults.filter(r => r.source === 'online').map((res, idx) => (
+                                            <button
+                                              key={idx}
+                                              onClick={() => {
+                                                const metadata = res.metadata as any;
+                                                const diseaseName = metadata?.disease || res.name.split(/_| FR_/)[0];
+                                                const mutationCode = metadata?.mutation || (res.name.match(/[A-Z]\d+[A-Z]/)?.[0] || "");
+                                                const gene = metadata?.gene;
+                                                const rawId = res.id.includes(':') ? res.id.split(':')[1] : res.id;
+                                                
+                                                const resolvedPdbId = (gene && !gene.includes('_')) ? gene : 
+                                                                    (rawId && !rawId.includes('_') && rawId.length < 15) ? rawId : 
+                                                                    diseaseName;
+                                                
+                                                setPdbId(resolvedPdbId);
+                                                setTarget(diseaseName);
+                                                setSearchQuery(diseaseName);
+                                                setMutation(mutationCode);
+                                                setShowSearchResults(false);
+                                                toast.success(`Target: ${diseaseName}${mutationCode ? ` | Mutation: ${mutationCode}` : ''}`);
+                                              }}
+                                              className="w-full p-3 rounded-xl hover:bg-slate-50 transition-all text-left group"
+                                            >
+                                              <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider truncate">{res.name}</div>
+                                              <div className="text-[8px] text-slate-400 font-medium uppercase truncate mt-1">{res.description}</div>
+                                            </button>
+                                          ))
+                                        )}
+                                      </div>
+                                    </ScrollArea>
+                                  </div>
+                                </div>
+                                <div className="p-2 bg-slate-50 border-t border-slate-100 text-center">
+                                  <button onClick={() => setShowSearchResults(false)} className="text-[8px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest">Close Results</button>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
 
-                        {/* Search Results Dropdown */}
-                        <AnimatePresence>
-                          {showSearchResults && (searchQuery.length >= 2 || searchResults.length > 0) && (
-                            <motion.div 
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: 10 }}
-                               className="absolute top-full left-0 right-0 mt-2 bg-white/95 backdrop-blur-xl border border-slate-200 rounded-[2rem] overflow-hidden z-50"
-                            >
-                              <div className="grid grid-cols-2 divide-x divide-slate-100 h-[320px]">
-                                {/* Left: Local */}
-                                <div className="flex flex-col min-w-0">
-                                  <div className="p-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Local Vault</span>
-                                    {searchLoading && <RefreshCw className="w-2.5 h-2.5 text-emerald-500 animate-spin" />}
-                                  </div>
-                                  <ScrollArea className="flex-1">
-                                    <div className="p-2 space-y-1">
-                                      {searchResults.filter(r => r.source === 'local').length === 0 ? (
-                                        <div className="py-12 text-center opacity-30 text-[9px] font-bold uppercase tracking-widest">
-                                          {searchLoading ? "Scanning Vault..." : searchQuery ? "No Local Data" : "Ready for Input..."}
-                                        </div>
-                                      ) : (
-                                        searchResults.filter(r => r.source === 'local').map((res, idx) => (
-                                          <button
-                                            key={idx}
-                                            onClick={() => {
-                                              setPdbId(res.id.includes(':') ? res.id.split(':')[1] : res.id);
-                                              setTarget(res.name);
-                                              setSearchQuery(res.name);
-                                              setShowSearchResults(false);
-                                              toast.success(`Loaded Local: ${res.name}`);
-                                            }}
-                                            className="w-full p-3 rounded-xl hover:bg-slate-50 transition-all text-left group"
-                                          >
-                                            <div className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider truncate">{res.name}</div>
-                                            <div className="text-[8px] text-slate-400 font-medium uppercase truncate mt-1">{res.description}</div>
-                                          </button>
-                                        ))
-                                      )}
-                                    </div>
-                                  </ScrollArea>
-                                </div>
-
-                                {/* Right: Online */}
-                                <div className="flex flex-col min-w-0">
-                                  <div className="p-3 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Global Repo</span>
-                                    {searchLoading && <RefreshCw className="w-2.5 h-2.5 text-blue-500 animate-spin" />}
-                                  </div>
-                                  <ScrollArea className="flex-1">
-                                    <div className="p-2 space-y-1">
-                                      {searchResults.filter(r => r.source === 'online').length === 0 ? (
-                                        <div className="py-12 text-center opacity-30 text-[9px] font-bold uppercase tracking-widest">
-                                          {searchLoading ? "Consulting UniProt..." : searchQuery ? "No Online Results" : "Awaiting Query..."}
-                                        </div>
-                                      ) : (
-                                        searchResults.filter(r => r.source === 'online').map((res, idx) => (
-                                          <button
-                                            key={idx}
-                                            onClick={() => {
-                                              setPdbId(res.id);
-                                              setTarget(res.name);
-                                              setSearchQuery(res.name);
-                                              setShowSearchResults(false);
-                                              toast.success(`Loaded Global: ${res.name}`);
-                                            }}
-                                            className="w-full p-3 rounded-xl hover:bg-slate-50 transition-all text-left group"
-                                          >
-                                            <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider truncate">{res.name}</div>
-                                            <div className="text-[8px] text-slate-400 font-medium uppercase truncate mt-1">{res.description}</div>
-                                          </button>
-                                        ))
-                                      )}
-                                    </div>
-                                  </ScrollArea>
-                                </div>
-                              </div>
-                              <div className="p-2 bg-slate-50 border-t border-slate-100 text-center">
-                                <button onClick={() => setShowSearchResults(false)} className="text-[8px] font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest">Close Results</button>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
+                        {/* Secondary Search: Mutation */}
+                        <div className="space-y-3 relative">
+                          <Label className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 px-1">Mutation Override (Establish Variant)</Label>
+                          <div className="relative group">
+                            <Dna className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
+                            <Input 
+                              placeholder="Enter mutation if you want (e.g., H274Y)..." 
+                              value={mutation}
+                              onChange={(e) => setMutation(e.target.value)}
+                              className="pl-12 h-16 bg-slate-50/50 border-none rounded-[1.5rem] font-bold text-sm focus-visible:ring-2 focus-visible:ring-blue-500/20 focus-visible:bg-white transition-all shadow-sm"
+                            />
+                          </div>
+                        </div>
                       </div>
                     </TabsContent>
 
@@ -642,22 +704,19 @@ export default function DockingPage() {
                         className={`${cardStyle} flex-1 min-h-[600px] bg-white border border-slate-200`}
                       >
                         {/* Viewport UI Overlay */}
-                        <div className="absolute top-8 left-8 z-20 space-y-4 pointer-events-none">
-                          <div className="flex items-center gap-3">
-                            <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
-                            <span className="text-[10px] font-bold text-slate-900 uppercase tracking-[0.3em] opacity-80">Simulation Engine Active</span>
-                          </div>
-                          {result && (
-                            <div className="px-4 py-2 bg-slate-100 backdrop-blur-md rounded-xl border border-slate-200">
-                               <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{result.pdb_id} :: LOADED</span>
-                            </div>
-                          )}
+                        <div className="absolute top-8 left-8 z-20 space-y-1 pointer-events-none">
+                           <span className="text-[10px] font-bold text-slate-900 uppercase tracking-[0.3em] opacity-80">3D Structure</span>
                         </div>
 
                         <div className="absolute top-8 right-8 z-20 flex gap-2">
-                           <button className="p-3 bg-white backdrop-blur-md rounded-xl text-slate-900 hover:bg-slate-50 transition-all border border-slate-200">
-                              <Maximize2 className="w-4 h-4" />
-                           </button>
+                           <Button 
+                             variant="outline" 
+                             size="icon"
+                             onClick={() => setShowModal(true)}
+                             className="w-12 h-12 bg-white/80 backdrop-blur-md rounded-xl text-slate-900 hover:bg-slate-50 transition-all border border-slate-200"
+                           >
+                              <Maximize2 className="w-5 h-5" />
+                           </Button>
                         </div>
 
                         <div className="h-full flex items-center justify-center relative p-8">
@@ -756,11 +815,24 @@ export default function DockingPage() {
                                 height={600} 
                               />
                               {/* Viewport HUD */}
-                              <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between pointer-events-none">
                                  <div className="flex gap-2">
                                     <span className="px-3 py-1.5 bg-white/80 backdrop-blur-md rounded-lg text-[9px] font-bold text-slate-900 uppercase border border-slate-200">CENTER: 0, 0, 0</span>
                                     <span className="px-3 py-1.5 bg-white/80 backdrop-blur-md rounded-lg text-[9px] font-bold text-slate-900 uppercase border border-slate-200">ZOOM: 1.2X</span>
                                  </div>
+                                 
+                                 {result && (
+                                    <div className="flex flex-col gap-2 items-end">
+                                       <div className="px-4 py-2 bg-emerald-500/10 backdrop-blur-md rounded-xl border border-emerald-500/20">
+                                          <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">{result.pdb_id} :: LOADED</span>
+                                       </div>
+                                       {result.mutation && (
+                                          <div className="px-4 py-2 bg-amber-500/10 backdrop-blur-md rounded-xl border border-amber-500/20">
+                                             <span className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Mutation: {result.mutation}</span>
+                                          </div>
+                                       )}
+                                    </div>
+                                 )}
                               </div>
                             </div>
                           )}
@@ -954,16 +1026,52 @@ export default function DockingPage() {
                                   <div className="text-3xl font-bold text-amber-400">High</div>
                                </div>
                             </div>
-                         </div>
+                        </div>
                       </div>
-                    </div>
-                  </ScrollArea>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    </ScrollArea>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+          </div>
         </div>
+        {/* Fullscreen Viewer Modal */}
+        <Dialog open={showModal} onOpenChange={setShowModal}>
+          <DialogContent className="max-w-[95vw] w-[95vw] h-[90vh] p-0 overflow-hidden bg-white border-none rounded-[3rem]">
+            <DialogHeader className="absolute top-8 left-8 z-50 p-0 pointer-events-none">
+              <DialogTitle className="text-[11px] font-bold uppercase tracking-[0.4em] text-slate-900 opacity-60">
+                Deep-Dive Structural Analysis :: {result?.pdb_id || result?.target}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="w-full h-full relative">
+               <Molecule3DViewer 
+                 pdbData={result?.pdb_content} 
+                 ligandData={selectedResult?.ligand_pdb}
+                 height="100%" 
+               />
+               <button 
+                 onClick={() => setShowModal(false)}
+                 className="absolute top-8 right-8 z-50 w-12 h-12 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-slate-800 transition-all shadow-xl"
+               >
+                 <X className="w-5 h-5" />
+               </button>
+               
+               {/* Modal HUD */}
+               <div className="absolute bottom-12 left-12 z-50 flex gap-4 pointer-events-none">
+                  <div className="px-6 py-4 bg-white/80 backdrop-blur-2xl rounded-3xl border border-slate-200 shadow-2xl space-y-1">
+                     <div className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Receptor</div>
+                     <div className="text-xs font-bold text-slate-900 uppercase tracking-wider">{result?.pdb_id} :: LOADED</div>
+                  </div>
+                  {result?.mutation && (
+                    <div className="px-6 py-4 bg-amber-500 text-white rounded-3xl shadow-2xl shadow-amber-500/20 space-y-1">
+                       <div className="text-[8px] font-bold text-white/60 uppercase tracking-widest">Variant</div>
+                       <div className="text-xs font-bold text-white uppercase tracking-wider">{result?.mutation}</div>
+                    </div>
+                  )}
+               </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
-  </div>
-);
+  );
 }

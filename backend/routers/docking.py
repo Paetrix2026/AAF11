@@ -5,10 +5,11 @@ import json
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from typing import List, Optional
 from pydantic import BaseModel
-from utils.docking_utils import run_vina_docking, LigandPreparer, ProteinPreparer, SCREENING_COMPOUNDS
 from utils.logger import get_logger
 import requests
+import subprocess
 from pathlib import Path
+from utils.docking_utils import run_vina_docking, LigandPreparer, ProteinPreparer, SCREENING_COMPOUNDS, CREATE_NO_WINDOW
 
 router = APIRouter()
 logger = get_logger("docking_router")
@@ -33,6 +34,28 @@ def get_pdb_id_from_target(target: str) -> Optional[str]:
         logger.error(f"Error reading PDB map: {e}")
         return None
 
+def get_mutation_resistance(compound: str, mutation: Optional[str]) -> float:
+    """Retrieve resistance score for a specific mutation if available."""
+    if not mutation:
+        return 0.1 # Baseline low risk
+
+    resistance_path = Path(__file__).parent.parent / "data" / "structures" / "mutation_resistance.json"
+    if not resistance_path.exists():
+        return 0.1
+        
+    try:
+        with open(resistance_path, "r") as f:
+            data = json.load(f)
+        
+        # Standardize mutation format (strip H1N1_ prefix if any)
+        clean_mut = mutation.split('_')[-1] if '_' in mutation else mutation
+        
+        comp_data = data.get(compound, {})
+        return comp_data.get(clean_mut, 0.1)
+    except Exception as e:
+        logger.error(f"Error reading mutation resistance map: {e}")
+        return 0.1
+
 @router.post("/dock", response_model=APIResponse)
 async def perform_docking(
     pdb_id: Optional[str] = Form(None),
@@ -45,14 +68,21 @@ async def perform_docking(
     size_y: float = Form(30.0),
     size_z: float = Form(30.0),
     exhaustiveness: int = Form(8),
+    mutation: Optional[str] = Form(None),
     pdb_file: Optional[UploadFile] = File(None)
 ):
     try:
+        # Filter malformed PDB IDs (like AI placeholders)
+        if pdb_id and ("disease_" in pdb_id or "mutation_" in pdb_id or len(pdb_id) > 15):
+            logger.warning(f"Detected malformed PDB ID: {pdb_id}. Reverting to target-based resolution.")
+            pdb_id = None
+
         # Resolve PDB ID if target is provided
         if not pdb_id and not pdb_file and target:
             pdb_id = get_pdb_id_from_target(target)
             if not pdb_id:
-                raise HTTPException(status_code=404, detail=f"No PDB mapping found for target: {target}")
+                # If target mapping fails, try using the target name as a fuzzy identifier for acquire_structure
+                pdb_id = target
             logger.info(f"Resolved target {target} to PDB ID: {pdb_id}")
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -64,11 +94,10 @@ async def perform_docking(
                 content = await pdb_file.read()
                 pdb_content = content.decode("utf-8", errors="replace")
             elif pdb_id:
-                url = f"https://files.rcsb.org/download/{pdb_id.upper()}.pdb"
-                resp = requests.get(url, timeout=30)
-                if resp.status_code != 200:
-                    raise HTTPException(status_code=404, detail=f"PDB {pdb_id} not found in RCSB")
-                pdb_content = resp.text
+                from utils.structure_utils import acquire_structure
+                pdb_content = await acquire_structure(pdb_id)
+                if not pdb_content:
+                    raise HTTPException(status_code=404, detail=f"Structure could not be resolved for: {pdb_id}")
             else:
                 raise HTTPException(status_code=400, detail="Either pdb_id, target, or pdb_file must be provided")
 
@@ -111,32 +140,26 @@ async def perform_docking(
                         exhaustiveness=exhaustiveness
                     )
 
-                    # Integrated Intelligence Scoring
-                    from agents.ResistanceAgent import score_resistance, load_resistance_data
-                    from agents.DecisionAgent import DecisionAgent
+                    # Simplified Scoring (Decoupled from Pipeline Agents)
+                    from utils.scoring_utils import calculate_simple_decision_score
                     
-                    resistance_data = load_resistance_data()
-                    typical_mutations = []
-                    try:
-                        profiles_path = os.path.join(os.path.dirname(__file__), "..", "data", "structures", "curated_profiles.json")
-                        with open(profiles_path) as f:
-                            profiles = json.load(f)
-                            typical_mutations = profiles.get(target, {}).get("typical_resistance_mutations", [])
-                    except:
-                        pass
-                    
-                    resistance = score_resistance(typical_mutations, compound["name"], resistance_data)
-                    
-                    # Decision Scoring
-                    decision_agent = DecisionAgent()
-                    decision_data = {
-                        "name": compound["name"],
-                        "binding": affinity if affinity is not None else -4.0,
-                        "resistance": resistance,
-                        "patient_risk": 0.5 # Default baseline
-                    }
-                    ranked_results = decision_agent.run([decision_data])
-                    decision_score = ranked_results[0]["decision_score"] if ranked_results else 0
+                    resistance = get_mutation_resistance(compound["name"], mutation)
+                    decision_score = calculate_simple_decision_score(affinity, resistance)
+
+                    # Convert Vina output (PDBQT) to PDB for the frontend viewer
+                    from utils.environment import get_binary_path
+                    obabel = get_binary_path("obabel")
+                    ligand_pdb_content = None
+                    if os.path.exists(output_pdbqt):
+                        ligand_pdb_path = os.path.join(tmpdir, f"{compound['name']}_out.pdb")
+                        # Explicitly set formats to avoid obabel guessing errors
+                        conv = subprocess.run([obabel, "-ipdbqt", output_pdbqt, "-opdb", "-O", ligand_pdb_path], 
+                                            capture_output=True, text=True, creationflags=CREATE_NO_WINDOW)
+                        if os.path.exists(ligand_pdb_path):
+                            with open(ligand_pdb_path, "r") as f:
+                                ligand_pdb_content = f.read()
+                        else:
+                            logger.warning(f"Obabel conversion failed for {compound['name']}: {conv.stderr}")
 
                     results.append({
                         "name": compound["name"],
@@ -146,7 +169,7 @@ async def perform_docking(
                         "resistance": resistance,
                         "decision_score": decision_score,
                         "status": "success",
-                        "ligand_pdb": open(ligand_pdbqt, "r").read() if os.path.exists(ligand_pdbqt) else None
+                        "ligand_pdb": ligand_pdb_content
                     })
                 except Exception as e:
                     logger.error(f"Compound {compound['name']} failed: {e}")
@@ -165,6 +188,7 @@ async def perform_docking(
                     "results": results,
                     "pdb_id": pdb_id,
                     "target": target,
+                    "mutation": mutation,
                     "pdb_content": pdb_content,
                 },
                 message="Molecular docking screening process finished. Check individual compound status for failures."

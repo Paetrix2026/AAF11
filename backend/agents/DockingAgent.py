@@ -22,11 +22,12 @@ def run(state: PipelineState) -> PipelineState:
         return state
 
     if not receptor_pdbqt:
+        logger.warning(f"DockingAgent: receptor_pdbqt is missing or empty. Skipping docking for all compounds. Pathogen: {pathogen}")
         state["docking_results"] = [
             {"name": c["name"], "smiles": c["smiles"], "affinity": None}
             for c in compounds
         ]
-        state["step_updates"].append("DockingAgent:complete:Receptor structure not ready (returning list only)")
+        state["step_updates"].append("DockingAgent:complete:Receptor structure missing (skipping physical docking)")
         return state
 
     from utils.environment import get_binary_path

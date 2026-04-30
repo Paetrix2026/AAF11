@@ -57,7 +57,7 @@ async def fetch_uniprot(pathogen: str) -> List[Dict]:
         try:
             r = await client.get(
                 "https://rest.uniprot.org/uniprotkb/search",
-                params={"query": pathogen, "format": "json", "size": 3},
+                params={"query": f"{pathogen} AND (organism_id:9606)", "format": "json", "size": 3},
             )
             results = r.json().get("results", [])
             proteins = []
@@ -79,16 +79,26 @@ async def fetch_pubchem(compound_name: str) -> List[Dict]:
     encoded_name = urllib.parse.quote(compound_name)
     async with httpx.AsyncClient(timeout=TIMEOUT) as client:
         try:
-            # We fetch both Canonical and Isomeric SMILES to be safe
+            # Try name lookup first
             url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{encoded_name}/property/CanonicalSMILES,IsomericSMILES,Title/JSON"
             r = await client.get(url)
+            
+            if r.status_code != 200:
+                # Fallback: Try CID search if name fails (common for some synonyms)
+                cid_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{encoded_name}/cids/JSON"
+                cid_r = await client.get(cid_url)
+                if cid_r.status_code == 200:
+                    cid = cid_r.json().get("IdentifierList", {}).get("CID", [None])[0]
+                    if cid:
+                        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/property/CanonicalSMILES,IsomericSMILES,Title/JSON"
+                        r = await client.get(url)
+            
             if r.status_code != 200:
                 return []
             
             props = r.json().get("PropertyTable", {}).get("Properties", [])
             results = []
             for p in props[:5]:
-                # PubChem sometimes returns 'SMILES' instead of the specific types requested
                 smiles = p.get("CanonicalSMILES") or p.get("IsomericSMILES") or p.get("SMILES")
                 results.append({
                     "name": p.get("Title") or compound_name,

@@ -5,5 +5,15 @@
   "Influenza A": "4WSB",
   "Neuraminidase": "4WSB",
   "Main Protease": "6LU7",
-  "RdRp": "7BV2"
+  "RdRp": "7BV2",
+  "FXN": "1EKG",
+  "Frataxin": "1EKG",
+  "Friedreich's ataxia": "1EKG",
+  "Ataxia": "1EKG",
+  "BRAF": "4H58",
+  "PIK3CA": "4W8Y",
+  "EGFR": "1M17",
+  "Alzheimer's": "1IYT",
+  "Parkinson's": "1XQ8",
+  "HIV": "3HVP"
 }

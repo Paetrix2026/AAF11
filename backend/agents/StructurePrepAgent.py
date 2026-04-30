@@ -17,6 +17,10 @@ PATHOGEN_PDB_MAP = {
     "SARS-COV-2": "7BZ5",
     "COVID-19": "7BZ5",
     "INFLUENZA": "4WSB",
+    "SEIZURE": "6D6T",
+    "EPILEPSY": "6D6T",
+    "CANCER": "1T46",
+    "TUMOR": "1T46",
 }
 
 def clean_pdb(input_pdb: str, output_pdb: str) -> None:
@@ -72,40 +76,51 @@ def convert_to_pdbqt(input_pdb: str, output_pdbqt: str) -> bool:
         return False
 
 def fetch_alphafold(accession: str) -> str:
-    """Fetch structure from AlphaFold Protein Structure Database."""
-    import gzip
-    from io import BytesIO
+    """Fetch structure from AlphaFold Protein Structure Database using their API to find the correct URL."""
+    import httpx
+    headers = {"User-Agent": "Healynx-Clinical-Pipeline/1.0"}
+    api_url = f"https://alphafold.ebi.ac.uk/api/prediction/{accession}"
     
-    # Try multiple common versions and formats
-    variants = [
-        f"https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v4.pdb",
-        f"https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v4.pdb.gz",
-        f"https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v3.pdb",
-        f"https://alphafold.ebi.ac.uk/files/AF-{accession}-F1-model_v3.pdb.gz",
-    ]
-    
-    for url in variants:
-        try:
-            resp = requests.get(url, timeout=15)
-            if resp.status_code == 200:
-                logger.info(f"AlphaFold: Successfully fetched structure for {accession} via {url}")
-                if url.endswith(".gz"):
-                    with gzip.GzipFile(fileobj=BytesIO(resp.content)) as f:
-                        return f.read().decode("utf-8")
-                return resp.text
-        except Exception as e:
-            logger.debug(f"AlphaFold fetch failed for {url}: {e}")
+    try:
+        with httpx.Client(timeout=15, follow_redirects=True) as client:
+            # First, ask the API for the available models
+            api_resp = client.get(api_url, headers=headers)
+            if api_resp.status_code != 200:
+                logger.debug(f"AlphaFold API returned {api_resp.status_code} for {accession}")
+                return None
+            
+            data = api_resp.json()
+            if not data or not isinstance(data, list):
+                return None
+            
+            # Find the PDB URL in the first model result
+            pdb_url = data[0].get("pdbUrl")
+            if not pdb_url:
+                logger.debug(f"AlphaFold API: No PDB URL found in response for {accession}")
+                return None
+            
+            # Now download the actual PDB
+            pdb_resp = client.get(pdb_url, headers=headers)
+            if pdb_resp.status_code == 200:
+                logger.info(f"AlphaFold: Successfully fetched structure for {accession} via API-provided URL")
+                return pdb_resp.text
+                
+    except Exception as e:
+        logger.debug(f"AlphaFold API/fetch failed for {accession}: {e}")
     
     return None
 
 def fetch_esmfold(sequence: str) -> str:
     """Predict structure using ESMFold API (Meta AI)."""
+    import httpx
     try:
         url = "https://api.esmatlas.com/foldSequence/v1/pdb/"
-        resp = requests.post(url, data=sequence, timeout=60)
-        if resp.status_code == 200:
-            logger.info("ESMFold: Successfully predicted structure from sequence")
-            return resp.text
+        headers = {"User-Agent": "Healynx-Clinical-Pipeline/1.0"}
+        with httpx.Client(timeout=60) as client:
+            resp = client.post(url, content=sequence, headers=headers)
+            if resp.status_code == 200:
+                logger.info("ESMFold: Successfully predicted structure from sequence")
+                return resp.text
     except Exception as e:
         logger.warning(f"ESMFold prediction failed: {e}")
     return None
@@ -132,7 +147,7 @@ def run(state: PipelineState) -> PipelineState:
     if not pdb_data and proteins:
         for p in proteins:
             seq = p.get("sequence")
-            if seq and len(seq) < 400: # ESMFold has limits
+            if seq and len(seq) < 400: # ESMFold free API limit
                 pdb_data = fetch_esmfold(seq)
                 if pdb_data:
                     source = "ESMFold Prediction"

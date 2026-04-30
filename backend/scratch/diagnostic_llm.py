@@ -8,7 +8,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 def test_vertex():
     print("\n--- Testing ChatVertexAI ---")
     try:
-        llm = ChatVertexAI(model="gemini-1.5-flash")
+        llm = ChatVertexAI(model="gemini-2.5-flash")
         res = llm.invoke("Hi")
         print(f"Vertex Success: {res.content}")
     except Exception as e:
@@ -18,7 +18,7 @@ def test_genai():
     print("\n--- Testing ChatGoogleGenerativeAI ---")
     api_key = os.getenv("GOOGLE_API_KEY")
     try:
-        llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", google_api_key=api_key)
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
         res = llm.invoke("Hi")
         print(f"GenAI Success: {res.content}")
     except Exception as e:

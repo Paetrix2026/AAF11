@@ -8,6 +8,7 @@ logger = get_logger("ExplainabilityAgent")
 RECOMMENDATION_PROMPT = """You are a clinical AI assistant. Based on the pipeline analysis below, generate a treatment recommendation.
 
 Pathogen: {pathogen}
+Symptoms reported: {symptoms}
 Mutations detected: {mutations}
 
 Simulation Results (Stability & Time-to-Failure):
@@ -51,6 +52,7 @@ def run(state: PipelineState) -> PipelineState:
         llm = get_llm(provider="vertex")
         prompt = RECOMMENDATION_PROMPT.format(
             pathogen=state["pathogen"],
+            symptoms=", ".join(state.get("symptoms") or ["None reported"]),
             mutations=json.dumps(state.get("mutations") or []),
             simulation_results=json.dumps(simulation_results, indent=2),
             ranked_drugs=json.dumps(ranked_drugs, indent=2),

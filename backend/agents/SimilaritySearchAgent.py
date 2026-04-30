@@ -1,23 +1,26 @@
 from pipeline.state import PipelineState
 from utils.logger import get_logger
+from utils.db import get_pool
 
 logger = get_logger("SimilaritySearchAgent")
 
 
-async def fetch_similar_cases(patient_id: str, pathogen: str, pool) -> list:
+async def fetch_similar_cases(patient_id: str, pathogen: str) -> list:
     """Fetch similar historical cases from the database."""
     try:
+        pool = await get_pool()
         async with pool.acquire() as conn:
+            # Query pipeline_runs and outcomes to find similar pathogens
             rows = await conn.fetch(
                 """
-                SELECT o.id, o.recommended_drug, o.outcome, o.created_at,
-                       pr.pathogen
+                SELECT o.id, o.recommended_drug, o.outcome, o.created_at
                 FROM outcomes o
                 JOIN pipeline_runs pr ON o.run_id = pr.id
                 WHERE pr.pathogen ILIKE $1
-                  AND o.patient_id != $2::uuid
+                  AND (o.patient_id IS NULL OR o.patient_id != $2::uuid)
                   AND o.outcome IS NOT NULL
-                LIMIT 5
+                ORDER BY o.created_at DESC
+                LIMIT 4
                 """,
                 f"%{pathogen}%",
                 patient_id,
@@ -36,12 +39,15 @@ async def fetch_similar_cases(patient_id: str, pathogen: str, pool) -> list:
         return []
 
 
-def run(state: PipelineState) -> PipelineState:
-    """Synchronous wrapper — async DB call happens in orchestrator."""
+async def run(state: PipelineState) -> PipelineState:
+    """Fetches real historical data from previous clinical outcomes."""
     state["step_updates"].append("SimilaritySearchAgent:running:Searching historical cases...")
-    # Similar cases are fetched asynchronously in OrchestratorAgent
-    # This agent sets a placeholder; OrchestratorAgent fills it
-    if state.get("similar_cases") is None:
-        state["similar_cases"] = []
-    state["step_updates"].append(f"SimilaritySearchAgent:complete:Found {len(state['similar_cases'])} similar case(s)")
+    
+    patient_id = state.get("patient_id")
+    pathogen = state.get("pathogen", "Unknown")
+    
+    cases = await fetch_similar_cases(patient_id, pathogen)
+    state["similar_cases"] = cases
+    
+    state["step_updates"].append(f"SimilaritySearchAgent:complete:Found {len(cases)} similar case(s)")
     return state
