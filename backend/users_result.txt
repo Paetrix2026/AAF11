@@ -1,0 +1,5 @@
+Users in DB: 4
+- Dr. Sarah Chen (doctor@proteinengine.ai) : doctor
+- Dr. Sarah Chen (doctor@protengine.ai) : doctor
+- Patient Zero (patient@healynx.ai) : patient
+- Dr. Rafan (doctor@healynx.ai) : doctor

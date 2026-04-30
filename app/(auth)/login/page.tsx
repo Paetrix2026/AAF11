@@ -26,10 +26,6 @@ export default function LoginPage() {
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>()
 
   const onSubmit = async (data: LoginFormData) => {
-    if (activeTab === "patient") {
-      setError("Patient portal is under maintenance. Access restricted.")
-      return
-    }
     setLoading(true)
     setError("")
     try {
@@ -121,15 +117,15 @@ export default function LoginPage() {
                 <button
                   onClick={() => setActiveTab("patient")}
                   type="button"
-                  className={`flex-1 p-4 rounded-md transition-all duration-300 border-2 opacity-50 cursor-not-allowed ${
+                  className={`flex-1 p-4 rounded-md transition-all duration-300 border-2 ${
                     activeTab === "patient"
-                      ? "bg-gray-100 border-gray-200"
-                      : "bg-gray-50/50 border-gray-100"
+                      ? "bg-[#00e5c3] border-[#00e5c3] shadow-lg shadow-[#00e5c3]/20"
+                      : "bg-gray-50/50 hover:bg-gray-100/50 border-gray-100"
                   }`}
                 >
                   <div className="flex flex-col items-center gap-2">
-                    <User className={`w-5 h-5 text-gray-400`} />
-                    <p className={`font-black text-[10px] uppercase tracking-widest text-gray-500`}>Patient Portal</p>
+                    <User className={`w-5 h-5 ${activeTab === "patient" ? "text-black" : "text-gray-400"}`} />
+                    <p className={`font-black text-[10px] uppercase tracking-widest ${activeTab === "patient" ? "text-black" : "text-gray-500"}`}>Patient Portal</p>
                   </div>
                 </button>
               </div>

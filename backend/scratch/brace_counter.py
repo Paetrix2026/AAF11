@@ -1,0 +1,23 @@
+
+import os
+
+path = r'c:\Projects\AAF11\app\(app)\doctor\docking\page.tsx'
+with open(path, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+print(f"Total characters: {len(content)}")
+print(f"Total lines: {len(content.splitlines())}")
+
+count = 0
+for i, c in enumerate(content):
+    if c == '{': count += 1
+    elif c == '}': count -= 1
+    if count < 0:
+        print(f"UNBALANCED }} at pos {i}")
+        # Print context
+        start = max(0, i - 50)
+        end = min(len(content), i + 50)
+        print(f"Context: {content[start:end]}")
+        break
+
+print(f"Final balance: {count}")
