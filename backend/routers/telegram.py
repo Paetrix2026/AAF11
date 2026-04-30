@@ -12,6 +12,22 @@ class TelegramConnectRequest(BaseModel):
     handle: str
 
 
+class FamilyAskRequest(BaseModel):
+    question: str
+    context: dict = {}
+
+
+class FamilyNotifyRequest(BaseModel):
+    patient_name: str
+    primary_drug: str
+    predicted_outcome: str = "unknown"
+    time_to_failure: str = "N/A"
+    risk_level: str = "unknown"
+    patient_summary: str = ""
+    action_required: str = ""
+    pathogen: str = ""
+
+
 class APIResponse(BaseModel):
     success: bool
     data: object
@@ -25,6 +41,33 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid token")
     return payload
+
+
+@router.post("/family/ask")
+async def family_ask(req: FamilyAskRequest):
+    from telegram.bot import answer_family_question
+    answer = await answer_family_question(req.question, req.context)
+    return {"success": True, "data": {"answer": answer}, "message": "OK"}
+
+
+@router.post("/family/notify", response_model=APIResponse)
+async def family_notify(req: FamilyNotifyRequest, current_user: dict = Depends(get_current_user)):
+    from telegram.bot import send_family_channel_update
+    sent = await send_family_channel_update(
+        patient_name=req.patient_name,
+        primary_drug=req.primary_drug,
+        predicted_outcome=req.predicted_outcome,
+        time_to_failure=req.time_to_failure,
+        risk_level=req.risk_level,
+        patient_summary=req.patient_summary,
+        action_required=req.action_required,
+        pathogen=req.pathogen,
+    )
+    return APIResponse(
+        success=sent,
+        data={"sent": sent},
+        message="Family channel notified" if sent else "Notification failed",
+    )
 
 
 @router.post("/connect", response_model=APIResponse)

@@ -52,22 +52,25 @@ export const runPipeline = (payload: PipelineInput) =>
     body: JSON.stringify(payload),
   });
 
-export const streamPipeline = (runId: string, onStep: (data: string) => void) => {
+export const streamPipeline = (
+  runId: string,
+  onStep: (data: string) => void,
+) => {
   const es = new EventSource(`${BASE_URL}/api/stream/${runId}`);
-  
+
   // Generic message listener (for "done" status)
   es.onmessage = (e) => onStep(e.data);
-  
+
   // Named update listener (for "agent" status)
   es.addEventListener("update", (e) => {
     onStep(e.data);
   });
-  
+
   return es;
 };
 
 export const getPipelineResult = (runId: string) =>
-  apiCall<PipelineRun>(`/api/pipeline/result/${runId}`);
+  apiCall<PipelineRun>(`/api/result/${runId}`);
 
 export const submitOutcome = (runId: string, outcome: string, notes: string) =>
   apiCall<Outcome>("/api/outcome", {
@@ -77,10 +80,14 @@ export const submitOutcome = (runId: string, outcome: string, notes: string) =>
 
 export const getPatients = () => apiCall<Patient[]>("/api/patients");
 
-export const getPatient = (id: string) => apiCall<Patient>(`/api/patients/${id}`);
+export const getPatient = (id: string) =>
+  apiCall<Patient>(`/api/patients/${id}`);
 
 export const createPatient = (data: PatientInput) =>
-  apiCall<Patient>("/api/patients", { method: "POST", body: JSON.stringify(data) });
+  apiCall<Patient>("/api/patients", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
 
 export const updatePatient = (id: string, data: Partial<PatientInput>) =>
   apiCall<Patient>(`/api/patients/${id}`, {
@@ -104,10 +111,25 @@ export const connectTelegram = (handle: string) =>
 
 export const getPipelineRuns = (patientId?: string) =>
   apiCall<PipelineRun[]>(
-    patientId ? `/api/pipeline/runs?patient_id=${patientId}` : "/api/pipeline/runs"
+    patientId ? `/api/runs?patient_id=${patientId}` : "/api/runs",
   );
 export const getScreeningCompounds = () =>
   apiCall<any[]>("/api/screening-compounds");
+
+export const downloadReport = async (runId: string): Promise<void> => {
+  const token = getCookie("token");
+  const response = await fetch(`/api/export?run_id=${runId}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) throw new Error(`Export failed: ${response.status}`);
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `healynx-report-${runId}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
 
 export const searchPathogens = (query: string) =>
   apiCall<any[]>(`/api/search?q=${query}`);

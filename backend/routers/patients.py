@@ -42,7 +42,7 @@ def _serialize_patient(row: dict) -> dict:
     p["userId"] = str(p.pop("user_id")) if p.get("user_id") else None
     if p.get("created_at"):
         p["createdAt"] = p.pop("created_at").isoformat()
-    
+
     # Parse JSON strings since asyncpg returns JSONB as strings
     for field in ["conditions", "medications"]:
         if isinstance(p.get(field), str):
@@ -52,7 +52,7 @@ def _serialize_patient(row: dict) -> dict:
                 p[field] = []
         elif p.get(field) is None:
             p[field] = []
-            
+
     return p
 
 
@@ -78,8 +78,10 @@ async def list_patients(current_user: dict = Depends(get_current_user)):
 async def get_patient(patient_id: str, current_user: dict = Depends(get_current_user)):
     pool = await get_pool()
     async with pool.acquire() as conn:
+        # Try by primary key first, then fall back to user_id (for patients
+        # looking up their own record using their auth user ID)
         row = await conn.fetchrow(
-            "SELECT * FROM patients WHERE id = $1::uuid",
+            "SELECT * FROM patients WHERE id = $1::uuid OR user_id = $1::uuid LIMIT 1",
             patient_id,
         )
 

@@ -69,11 +69,27 @@ async def login(req: LoginRequest):
 
 @router.get("/me", response_model=APIResponse)
 async def me(current_user: dict = Depends(get_current_user)):
-    return APIResponse(
-        success=True,
-        data=current_user,
-        message="OK",
-    )
+    # Fetch fresh user data from DB to include telegram handle etc.
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id, email, name, role, telegram_handle, alert_opt_in FROM users WHERE id = $1::uuid",
+            current_user["sub"],
+        )
+    if row:
+        return APIResponse(
+            success=True,
+            data={
+                "id": str(row["id"]),
+                "email": row["email"],
+                "name": row["name"],
+                "role": row["role"],
+                "telegramHandle": row["telegram_handle"],
+                "alertOptIn": row["alert_opt_in"],
+            },
+            message="OK",
+        )
+    return APIResponse(success=True, data=current_user, message="OK")
 
 
 @router.post("/logout", response_model=APIResponse)

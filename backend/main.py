@@ -41,6 +41,7 @@ from routers import (
     alerts,
     telegram,
     docking,
+    outcomes,
 )
 
 
@@ -90,6 +91,7 @@ app.include_router(patients.router, prefix="/api/patients")
 app.include_router(alerts.router, prefix="/api/alerts")
 app.include_router(telegram.router, prefix="/api/telegram")
 app.include_router(docking.router, prefix="/api")
+app.include_router(outcomes.router, prefix="/api")
 
 
 @app.get("/")

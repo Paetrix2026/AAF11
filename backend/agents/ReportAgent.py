@@ -33,7 +33,16 @@ def run(state: PipelineState) -> PipelineState:
         "doctorSummary": recommendation.get("doctor_summary", ""),
         "patientSummary": recommendation.get("patient_summary", ""),
         "actionRequired": recommendation.get("action_required", ""),
-        "resistanceScores": state.get("resistance_scores") or {},
+        # Use resistance_scores from state; if agent was skipped, derive from simulation results
+        "resistanceScores": (
+            state.get("resistance_scores")
+            or {
+                d.get("name"): round(d.get("resistance", 0.1), 3)
+                for d in sim_results
+                if d.get("name")
+            }
+            or {}
+        ),
         "similarCases": state.get("similar_cases") or [],
         "dockingResults": state.get("docking_results") or [],
         "admetScores": state.get("admet_scores", {}).get(next((k for k in state.get("admet_scores", {}).keys() if k.lower() == primary_drug_name.lower()), primary_drug_name), {}),
