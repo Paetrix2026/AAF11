@@ -4,25 +4,28 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
-  Home, 
+  LayoutDashboard, 
   Pill, 
   Bell, 
   User, 
   LogOut, 
-  Shield, 
+  ShieldCheck, 
   Send,
   Activity,
   ChevronRight,
-  Settings
+  Settings,
+  Shield
 } from "lucide-react";
 import { getUserFromCookie, clearAuthCookie } from "@/lib/auth";
 import { connectTelegram } from "@/lib/api";
 import type { User as UserType } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 const NAV_ITEMS = [
-  { icon: Home, label: "My Dashboard", href: "/patient" },
-  { icon: Pill, label: "My Medications", href: "/patient/medications" },
-  { icon: Bell, label: "My Health Alerts", href: "/patient/alerts" },
+  { icon: LayoutDashboard, label: "Dashboard", href: "/patient" },
+  { icon: Pill, label: "Medications", href: "/patient/medications" },
+  { icon: Bell, label: "Health Alerts", href: "/patient/alerts" },
   { icon: Settings, label: "Account Config", href: "/patient/profile" },
 ];
 
@@ -42,9 +45,8 @@ export function PatientSidebar() {
     setConnecting(true);
     try {
       await connectTelegram(telegramHandle.trim());
-      // Re-fetch user or update state would be better here
     } catch {
-      // Error handling
+      // Error handled silently for now
     } finally {
       setConnecting(false);
     }
@@ -56,33 +58,22 @@ export function PatientSidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-[280px] bg-bg-surface border-r border-white/5 flex flex-col z-[100] hidden lg:flex">
+    <aside className="fixed left-0 top-0 bottom-0 w-[300px] bg-white border-r border-slate-100 flex flex-col z-[100] hidden lg:flex">
       {/* Brand Header */}
-      <div className="p-8 border-b border-white/5">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="p-2 bg-accent-primary/10 rounded-lg border border-accent-primary/20 shadow-[0_0_15px_var(--accent-glow)]">
-            <Activity className="w-5 h-5 text-accent-primary" />
+      <div className="p-8 pb-10">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <ShieldCheck className="w-6 h-6" />
           </div>
-          <span className="font-display text-xl font-black tracking-tighter text-white">HEALYNX</span>
+          <span className="text-xl font-bold tracking-tight text-slate-900">Healynx</span>
         </div>
-
-        {/* Patient Identity */}
-        {user && (
-          <div className="flex items-center gap-4 p-4 bg-white/[0.02] border border-white/5 group hover:border-accent-primary/20 transition-all cursor-pointer">
-            <div className="w-10 h-10 bg-accent-primary/10 border border-accent-primary/20 flex items-center justify-center font-display text-xs font-black text-accent-primary transition-all">
-              {user.name.split(' ').map(n => n[0]).join('')}
-            </div>
-            <div className="overflow-hidden">
-              <div className="font-display text-xs font-bold text-white truncate uppercase tracking-tight">{user.name}</div>
-              <div className="font-display text-[8px] text-text-muted uppercase tracking-[0.2em] mt-0.5">Verified Health Profile</div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Main Navigation */}
-      <nav className="p-4 space-y-1">
-        <div className="px-4 py-2 font-display text-[9px] font-black text-text-muted uppercase tracking-[0.3em] mb-2">Personal Health Systems</div>
+      <nav className="px-6 space-y-1">
+        <div className="px-4 mb-4 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] opacity-50">
+          Personal Health
+        </div>
         {NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -90,57 +81,77 @@ export function PatientSidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-4 px-4 py-3 font-display text-[11px] font-bold tracking-widest uppercase transition-all group ${
+              className={`flex items-center gap-4 px-4 py-3 rounded-2xl text-[13px] font-semibold transition-all relative group ${
                 isActive 
-                  ? "bg-accent-primary text-bg-base shadow-[0_0_20px_var(--accent-glow)] translate-x-2" 
-                  : "text-text-secondary hover:text-white hover:bg-white/5"
+                  ? "text-slate-900 bg-slate-50" 
+                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-50/50"
               }`}
             >
-              <Icon className={`w-4 h-4 ${isActive ? "text-bg-base" : "text-accent-primary/60 group-hover:text-accent-primary"}`} />
-              {item.label}
-              {isActive && <ChevronRight className="ml-auto w-3 h-3" />}
+              {isActive && (
+                <div className="absolute left-0 top-2 bottom-2 w-1 bg-emerald-500 rounded-full" />
+              )}
+              <Icon className={`w-5 h-5 shrink-0 ${isActive ? "text-emerald-500" : "group-hover:text-slate-600"}`} />
+              <span className="tracking-tight">{item.label}</span>
+              {isActive && <ChevronRight className="ml-auto w-3 h-3 text-slate-300" />}
             </Link>
           );
         })}
       </nav>
 
-      {/* Security Hub / Telegram */}
-      <div className="mt-auto p-6 space-y-4">
-        <div className="glass-panel p-5 bg-white/[0.02] border-white/5">
-          <h4 className="font-display text-[9px] font-black text-white uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-            <Send className="w-3 h-3 text-accent-primary" /> Intelligence Link
-          </h4>
+      {/* Security Link Section */}
+      <div className="px-10 mt-12 mb-8">
+        <div className="p-6 bg-slate-50 border border-slate-100 rounded-[2rem] space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Send className="w-3.5 h-3.5 text-emerald-500" />
+            <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">Intelligence Link</span>
+          </div>
           
           {user?.telegramHandle ? (
-            <div className="flex items-center gap-2 px-3 py-2 bg-risk-safe/10 border border-risk-safe/20 rounded-sm">
-              <div className="w-1.5 h-1.5 rounded-full bg-risk-safe animate-pulse" />
-              <span className="font-display text-[9px] font-bold text-risk-safe uppercase tracking-widest">Active Link: {user.telegramHandle}</span>
+            <div className="flex items-center gap-2 py-1">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[11px] font-bold text-slate-600">@{user.telegramHandle}</span>
             </div>
           ) : (
-            <div className="space-y-2">
-              <input 
-                value={telegramHandle}
-                onChange={(e) => setTelegramHandle(e.target.value)}
-                placeholder="@handle" 
-                className="w-full bg-bg-base/40 border border-white/5 px-3 py-2 text-[10px] font-display uppercase tracking-widest outline-none focus:border-accent-primary/30 transition-all"
-              />
-              <button 
-                onClick={handleConnect}
-                disabled={connecting}
-                className="w-full py-2 bg-accent-primary/10 border border-accent-primary/20 text-accent-primary font-display text-[9px] font-black uppercase tracking-[0.2em] hover:bg-accent-primary hover:text-bg-base transition-all"
-              >
-                {connecting ? "Linking..." : "Establish Link"}
-              </button>
+            <div className="space-y-3">
+               <Input 
+                  value={telegramHandle}
+                  onChange={(e) => setTelegramHandle(e.target.value)}
+                  placeholder="@handle" 
+                  className="bg-white border-slate-200 rounded-xl h-9 text-xs font-medium placeholder:text-slate-300 focus-visible:ring-emerald-500/10"
+               />
+               <Button 
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  className="w-full h-9 bg-slate-900 text-white rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-slate-800"
+               >
+                  {connecting ? "Linking..." : "Establish Link"}
+               </Button>
             </div>
           )}
         </div>
+      </div>
 
-        <button 
+      {/* Footer / User Profile */}
+      <div className="p-6 mt-auto border-t border-slate-50">
+        {user && (
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 mb-4 border border-slate-100">
+             <div className="w-10 h-10 rounded-xl bg-white text-slate-900 flex items-center justify-center font-bold shrink-0 border border-slate-200">
+               {user.name.split(' ').map(n => n[0]).join('')}
+             </div>
+             <div className="overflow-hidden">
+               <div className="text-xs font-bold text-slate-900 truncate">{user.name}</div>
+               <div className="text-[10px] font-medium text-emerald-500 uppercase tracking-widest">Verified Profile</div>
+             </div>
+          </div>
+        )}
+        <Button 
+          variant="ghost" 
           onClick={handleLogout}
-          className="flex items-center gap-4 w-full px-4 py-3 font-display text-[10px] font-black tracking-[0.3em] uppercase text-text-muted hover:text-risk-critical hover:bg-risk-critical/10 transition-all"
+          className="w-full justify-start h-12 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 font-bold text-[13px] transition-all"
         >
-          <LogOut className="w-4 h-4" /> End Session
-        </button>
+          <LogOut className="w-5 h-5 mr-3" />
+          End Session
+        </Button>
       </div>
     </aside>
   );
