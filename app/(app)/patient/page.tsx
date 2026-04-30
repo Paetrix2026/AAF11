@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getAlerts, getMe, getPatient } from "@/lib/api";
+import { getAlerts, getMe, getPatient, getPipelineRuns } from "@/lib/api";
 import { getUserFromCookie } from "@/lib/auth";
 import { formatRelativeTime } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
@@ -27,13 +27,14 @@ import {
   Droplet,
   ArrowUpRight,
 } from "lucide-react";
-import type { Alert, Patient, User } from "@/types";
+import type { Alert, Patient, PipelineRun, User } from "@/types";
 import { FamilyAssistant } from "@/components/shared/FamilyAssistant";
 
 export default function PatientDashboard() {
   const [user, setUser] = useState<User | null>(null);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [runs, setRuns] = useState<PipelineRun[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,12 +44,14 @@ export default function PatientDashboard() {
       try {
         const freshUser = await getMe();
         setUser(freshUser);
-        const [patientData, alertsData] = await Promise.allSettled([
+        const [patientData, alertsData, runsData] = await Promise.allSettled([
           getPatient(freshUser.id),
           getAlerts(),
+          getPipelineRuns(), // backend auto-resolves patient_id for patient role
         ]);
         if (patientData.status === "fulfilled") setPatient(patientData.value);
         if (alertsData.status === "fulfilled") setAlerts(alertsData.value);
+        if (runsData.status === "fulfilled") setRuns(runsData.value ?? []);
       } catch {
         // getMe failed — still try alerts with cookie user if available
         try {
@@ -212,24 +215,155 @@ export default function PatientDashboard() {
               </h3>
             </div>
             <div className="px-4 py-2 bg-slate-100 rounded-xl text-[9px] font-black text-slate-500 uppercase tracking-widest">
-              Last 30 Days
+              {runs.length} Analysis{runs.length !== 1 ? "es" : ""}
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
-            <div className="w-20 h-20 rounded-[2rem] bg-slate-50 border border-slate-100 flex items-center justify-center mb-6 shadow-inner">
-              <Microscope className="w-8 h-8 text-slate-300" />
+          {runs.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
+              <div className="w-20 h-20 rounded-[2rem] bg-slate-50 border border-slate-100 flex items-center justify-center mb-6 shadow-inner">
+                <Microscope className="w-8 h-8 text-slate-300" />
+              </div>
+              <h4 className="text-sm font-black text-slate-900 uppercase tracking-[0.1em] mb-2">
+                No analyses yet
+              </h4>
+              <p className="text-[11px] text-slate-400 uppercase tracking-widest font-bold max-w-xs leading-relaxed">
+                Your doctor hasn&apos;t run a diagnostic pipeline for you yet.
+              </p>
             </div>
-            <h4 className="text-sm font-black text-slate-900 uppercase tracking-[0.1em] mb-2">
-              No active interventions
-            </h4>
-            <p className="text-[11px] text-slate-400 uppercase tracking-widest font-bold max-w-xs leading-relaxed">
-              Diagnostic sensors report baseline stability across all protocols.
-            </p>
-            <button className="mt-8 px-6 py-2 border border-slate-200 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 hover:border-slate-900 transition-all">
-              Request Full Scan
-            </button>
-          </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
+              {runs.map((run) => {
+                const r = run as PipelineRun & {
+                  result?: Record<string, unknown>;
+                };
+                const res = r.result as Record<string, unknown> | undefined;
+                const drug = (res?.primaryDrug ?? "—") as string;
+                const confidence = res?.primaryConfidence as number | undefined;
+                const outcome = res?.predictedOutcome as string | undefined;
+                const urgency = (res?.urgency ?? "monitor") as string;
+                const riskLevel = (res?.riskLevel ?? "—") as string;
+                const patientSummary = res?.patientSummary as
+                  | string
+                  | undefined;
+
+                const urgencyColor =
+                  urgency === "immediate"
+                    ? "text-red-600 bg-red-50 border-red-100"
+                    : urgency === "switch"
+                      ? "text-amber-600 bg-amber-50 border-amber-100"
+                      : urgency === "monitor"
+                        ? "text-blue-600 bg-blue-50 border-blue-100"
+                        : "text-emerald-600 bg-emerald-50 border-emerald-100";
+
+                const statusColor =
+                  run.status === "complete" ||
+                  (run.status as string) === "completed"
+                    ? "bg-emerald-100 text-emerald-700"
+                    : run.status === "running"
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-red-100 text-red-700";
+
+                return (
+                  <div
+                    key={run.id}
+                    className="p-6 hover:bg-slate-50/50 transition-all group"
+                  >
+                    {/* Top row */}
+                    <div className="flex items-start justify-between gap-4 mb-4">
+                      <div>
+                        <p className="font-black text-slate-900 text-sm">
+                          {((run as Record<string, unknown>)
+                            .pathogen as string) ?? "—"}
+                        </p>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                          {run.createdAt
+                            ? new Date(run.createdAt).toLocaleDateString(
+                                "en-US",
+                                {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                },
+                              )
+                            : "—"}
+                        </p>
+                      </div>
+                      <span
+                        className={`px-2.5 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest ${statusColor}`}
+                      >
+                        {run.status}
+                      </span>
+                    </div>
+
+                    {/* Result pills */}
+                    {res && (
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap gap-2">
+                          {drug !== "—" && (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest">
+                              <Pill className="w-3 h-3 text-emerald-400" />
+                              {drug}
+                            </div>
+                          )}
+                          {confidence !== undefined && (
+                            <div className="px-3 py-1.5 bg-slate-100 text-slate-700 rounded-xl text-[9px] font-black uppercase tracking-widest">
+                              {confidence}% Confidence
+                            </div>
+                          )}
+                          {urgency && urgency !== "—" && (
+                            <div
+                              className={`px-3 py-1.5 rounded-xl border text-[9px] font-black uppercase tracking-widest ${urgencyColor}`}
+                            >
+                              {urgency}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Patient-friendly summary */}
+                        {patientSummary && (
+                          <p className="text-[11px] text-slate-500 font-medium leading-relaxed italic border-l-2 border-emerald-200 pl-3">
+                            {patientSummary}
+                          </p>
+                        )}
+
+                        {/* Outcome + risk */}
+                        {(outcome || riskLevel !== "—") && (
+                          <div className="flex items-center gap-3 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                            {outcome && (
+                              <span>
+                                Outcome:{" "}
+                                <span className="text-slate-600">
+                                  {outcome}
+                                </span>
+                              </span>
+                            )}
+                            {riskLevel !== "—" && (
+                              <span>
+                                Risk:{" "}
+                                <span
+                                  className={
+                                    riskLevel === "low"
+                                      ? "text-emerald-600"
+                                      : riskLevel === "high" ||
+                                          riskLevel === "critical"
+                                        ? "text-red-600"
+                                        : "text-amber-600"
+                                  }
+                                >
+                                  {riskLevel}
+                                </span>
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Intelligence Alerts - SIDE TALL BLOCK */}

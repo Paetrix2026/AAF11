@@ -215,6 +215,19 @@ async def list_pipeline_runs(
 ):
     pool = await get_pool()
     async with pool.acquire() as conn:
+        role = current_user.get("role", "doctor")
+
+        # ── Patient calling their own runs ────────────────────────────
+        if role == "patient" and not patient_id:
+            # Look up the patient record linked to this user account
+            patient_row = await conn.fetchrow(
+                "SELECT id FROM patients WHERE user_id = $1::uuid",
+                current_user["sub"],
+            )
+            if not patient_row:
+                return {"success": True, "data": [], "message": "No patient record linked to this account"}
+            patient_id = str(patient_row["id"])
+
         if patient_id:
             try:
                 uuid.UUID(patient_id)
@@ -231,6 +244,7 @@ async def list_pipeline_runs(
                 patient_id,
             )
         else:
+            # Doctor fetching their own patients' runs
             rows = await conn.fetch(
                 """
                 SELECT id, patient_id, doctor_id, pathogen, variant, status, result, created_at
